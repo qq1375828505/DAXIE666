@@ -63,8 +63,8 @@ class OutlinePage extends ConsumerWidget {
                   final moved = vols.removeAt(oldIndex);
                   vols.insert(newIndex, moved);
                   for (int i = 0; i < vols.length; i++) {
-                    vols[i].orderIndex = i;
-                    await ref.read(volumeRepoProvider).updateVolume(vols[i]);
+                    final updated = vols[i].copyWith(orderIndex: i);
+                    await ref.read(volumeRepoProvider).updateVolume(updated);
                   }
                   ref.invalidate(volumesProvider(selectedNovel.id));
                 },
