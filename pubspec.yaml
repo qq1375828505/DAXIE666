@@ -18,7 +18,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   dio: ^5.4.3
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^8.0.0
   archive: ^3.6.1
   file_picker: ^8.0.5
   share_plus: ^9.0.0
