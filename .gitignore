@@ -1,0 +1,36 @@
+# Flutter
+*.dart_tool/
+.packages
+.pub/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Generated files
+*.freezed.dart
+*.g.dart
+*.mocks.dart
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive
+*密钥*
+*key*
+*.env
