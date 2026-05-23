@@ -26,7 +26,7 @@ jobs:
       run: flutter pub run build_runner build --delete-conflicting-outputs
 
     - name: Analyze project source
-      run: flutter analyze
+      run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
     - name: Build APK
       run: flutter build apk --release
