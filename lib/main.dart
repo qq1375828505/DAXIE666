@@ -32,11 +32,14 @@ class _NovelIdeAppState extends ConsumerState<NovelIdeApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load persistent settings
       final savedDark = ConfigService.isDarkMode;
       ref.read(darkModeProvider.notifier).state = savedDark;
       ref.read(fontSizeProvider.notifier).state = ConfigService.fontSize;
       ref.read(fontFamilyProvider.notifier).state = ConfigService.fontFamily;
       ref.read(lineHeightProvider.notifier).state = ConfigService.lineHeight;
+      // Load persisted data (AI configs, etc.)
+      loadAllData(ref);
     });
 
     ConnectivityService.onStatusChanged.listen((isOnline) {

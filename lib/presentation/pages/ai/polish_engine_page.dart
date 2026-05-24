@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
+import 'package:novel_ide/data/services/ai_service.dart';
 
 class PolishEnginePage extends ConsumerStatefulWidget {
   final String chapterContent;
@@ -17,7 +17,6 @@ class PolishEnginePage extends ConsumerStatefulWidget {
 class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
   final List<PolishItem> _items = [];
   bool _isLoading = false;
-  final Dio _dio = Dio();
 
   static const _dimensions = [
     '语病', '节奏', '文风', '冗余',
@@ -51,30 +50,13 @@ class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await _dio.post(
-        config.apiUrl,
-        options: Options(headers: {
-          'Authorization': 'Bearer ${config.apiKey ?? ''}',
-          'Content-Type': 'application/json',
-        }),
-        data: {
-          'model': config.modelName,
-          'messages': [
-            {
-              'role': 'system',
-              'content': preset?.systemPrompt ?? '你是一位网文精修专家。分析以下文本，针对${selectedDims.join('、')}维度找出问题段落，给出原文、问题和修改建议。',
-            },
-            {
-              'role': 'user',
-              'content': '请对以下章节进行${selectedDims.join('、')}维度的精修分析。\n\n${widget.chapterContent}',
-            },
-          ],
-          'temperature': config.temperature,
-          'max_tokens': config.maxTokens,
-        },
+      final aiService = ref.read(aiServiceProvider);
+      final aiText = await aiService.send(
+        config: config,
+        systemPrompt: preset?.systemPrompt ?? '你是一位网文精修专家。分析以下文本，针对${selectedDims.join('、')}维度找出问题段落，给出原文、问题和修改建议。',
+        userMessage: '请对以下章节进行${selectedDims.join('、')}维度的精修分析。\n\n${widget.chapterContent}',
       );
 
-      final aiText = response.data['choices']?[0]?['message']?['content'] ?? '精修分析失败';
       _parseResult(aiText);
     } catch (e) {
       setState(() => _isLoading = false);

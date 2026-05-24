@@ -11,6 +11,7 @@ import 'package:novel_ide/data/repositories/novel_repository.dart';
 import 'package:novel_ide/data/repositories/chapter_repository.dart';
 import 'package:novel_ide/data/repositories/volume_repository.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
+import 'package:novel_ide/data/datasources/database_helper.dart';
 
 final novelRepoProvider = Provider((ref) => NovelRepository());
 final chapterRepoProvider = Provider((ref) => ChapterRepository());
@@ -135,3 +136,40 @@ final lineHeightProvider = StateProvider<double>((ref) => 1.8);
 
 // Category filter for presets
 final categoryFilterProvider = StateProvider<String>((ref) => 'all');
+
+// --- Data Loading on Startup ---
+
+/// Load AI configs from SQLite into provider
+Future<void> loadAiConfigs(WidgetRef ref) async {
+  final db = DatabaseHelper();
+  final rows = await db.getAllAiConfigs();
+  final configs = rows.map((row) => AiConfig(
+    id: row['id'] as String,
+    name: row['name'] as String,
+    apiUrl: row['api_url'] as String,
+    modelName: row['model_name'] as String,
+    temperature: (row['temperature'] as num).toDouble(),
+    maxTokens: row['max_tokens'] as int,
+    isLocal: (row['is_local'] as int) == 1,
+  )).toList();
+  ref.read(aiConfigsProvider.notifier).state = configs;
+  // Auto-select first config if none selected
+  if (configs.isNotEmpty && ref.read(selectedAiConfigProvider) == null) {
+    ref.read(selectedAiConfigProvider.notifier).state = configs.first;
+  }
+}
+
+/// Load materials for a novel from filesystem into providers
+Future<void> loadNovelMaterials(WidgetRef ref, String novelId) async {
+  final repo = MaterialRepository();
+  ref.read(charactersProvider(novelId).notifier).state = await repo.getCharacters(novelId);
+  ref.read(settingCardsProvider(novelId).notifier).state = await repo.getSettingCards(novelId);
+  ref.read(plotHooksProvider(novelId).notifier).state = await repo.getPlotHooks(novelId);
+  ref.read(referencesProvider(novelId).notifier).state = await repo.getReferences(novelId);
+  ref.read(settingRemindersProvider(novelId).notifier).state = await repo.getSettingReminders(novelId);
+}
+
+/// Load all data on app startup
+Future<void> loadAllData(WidgetRef ref) async {
+  await loadAiConfigs(ref);
+}

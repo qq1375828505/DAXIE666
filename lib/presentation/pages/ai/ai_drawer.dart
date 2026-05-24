@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
-import 'package:dio/dio.dart';
+import 'package:novel_ide/data/services/ai_service.dart';
 
 class AiDrawer extends ConsumerStatefulWidget {
   final String novelId;
@@ -27,7 +27,6 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
   final TextEditingController _promptCtrl = TextEditingController();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
-  final Dio _dio = Dio();
 
   Future<void> _sendMessage({String? presetAction}) async {
     final text = presetAction ?? _promptCtrl.text.trim();
@@ -56,24 +55,12 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
           ? widget.controller.text.substring(widget.controller.text.length - 2000)
           : widget.controller.text;
 
-      final response = await _dio.post(
-        config.apiUrl,
-        options: Options(headers: {
-          'Authorization': 'Bearer ${config.apiKey ?? ''}',
-          'Content-Type': 'application/json',
-        }),
-        data: {
-          'model': config.modelName,
-          'messages': [
-            {'role': 'system', 'content': systemPrompt},
-            {'role': 'user', 'content': '当前章节内容：\n$context\n\n用户请求：$text'},
-          ],
-          'temperature': config.temperature,
-          'max_tokens': config.maxTokens,
-        },
+      final aiService = ref.read(aiServiceProvider);
+      final aiText = await aiService.send(
+        config: config,
+        systemPrompt: systemPrompt,
+        userMessage: '当前章节内容：\n$context\n\n用户请求：$text',
       );
-
-      final aiText = response.data['choices']?[0]?['message']?['content'] ?? '生成失败，请检查API配置';
       setState(() {
         _messages.add({'role': 'assistant', 'content': aiText});
         _isLoading = false;

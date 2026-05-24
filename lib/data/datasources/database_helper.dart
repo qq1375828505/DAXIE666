@@ -101,4 +101,21 @@ class DatabaseHelper {
       CREATE INDEX idx_snapshots_chapter ON chapter_snapshots(chapter_id);
     ''');
   }
+
+  // --- AI Config CRUD ---
+
+  Future<List<Map<String, dynamic>>> getAllAiConfigs() async {
+    final db = await database;
+    return await db.query('ai_configs');
+  }
+
+  Future<void> insertAiConfig(Map<String, dynamic> config) async {
+    final db = await database;
+    await db.insert('ai_configs', config, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> deleteAiConfig(String id) async {
+    final db = await database;
+    await db.delete('ai_configs', where: 'id = ?', whereArgs: [id]);
+  }
 }

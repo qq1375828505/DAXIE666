@@ -5,6 +5,7 @@ import 'package:novel_ide/core/router.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
+import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/services/config_service.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -271,6 +272,16 @@ class ProfilePage extends ConsumerWidget {
               if (keyCtrl.text.isNotEmpty) {
                 await SecureStorageDataSource().writeApiKey(config.id, keyCtrl.text.trim());
               }
+              // Persist to SQLite
+              await DatabaseHelper().insertAiConfig({
+                'id': config.id,
+                'name': config.name,
+                'api_url': config.apiUrl,
+                'model_name': config.modelName,
+                'temperature': config.temperature,
+                'max_tokens': config.maxTokens,
+                'is_local': config.isLocal ? 1 : 0,
+              });
               final currentList = ref.read(aiConfigsProvider);
               ref.read(aiConfigsProvider.notifier).state = [...currentList, config];
               ref.read(selectedAiConfigProvider.notifier).state = config;
@@ -353,12 +364,15 @@ class _AiConfigTile extends ConsumerWidget {
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-                onPressed: () {
+                onPressed: () async {
                   final list = ref.read(aiConfigsProvider).where((c) => c.id != config.id).toList();
                   ref.read(aiConfigsProvider.notifier).state = list;
                   if (ref.read(selectedAiConfigProvider)?.id == config.id) {
                     ref.read(selectedAiConfigProvider.notifier).state = list.isNotEmpty ? list.first : null;
                   }
+                  // Delete from SQLite and SecureStorage
+                  await DatabaseHelper().deleteAiConfig(config.id);
+                  await SecureStorageDataSource().deleteApiKey(config.id);
                   Navigator.pop(context);
                 },
                 child: const Text('删除'),

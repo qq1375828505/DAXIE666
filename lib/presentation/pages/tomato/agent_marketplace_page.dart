@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/tomato_agent_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
+import 'package:novel_ide/data/services/ai_service.dart';
 
 class AgentMarketplacePage extends ConsumerStatefulWidget {
   const AgentMarketplacePage({super.key});
@@ -188,7 +188,6 @@ class _AgentRunPageState extends ConsumerState<_AgentRunPage> {
   final TextEditingController _inputCtrl = TextEditingController();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
-  final Dio _dio = Dio();
 
   @override
   void initState() {
@@ -222,24 +221,12 @@ class _AgentRunPageState extends ConsumerState<_AgentRunPage> {
     });
 
     try {
-      final response = await _dio.post(
-        widget.config.apiUrl,
-        options: Options(headers: {
-          'Authorization': 'Bearer ${widget.config.apiKey ?? ''}',
-          'Content-Type': 'application/json',
-        }),
-        data: {
-          'model': widget.config.modelName,
-          'messages': [
-            {'role': 'system', 'content': widget.agent.systemPrompt},
-            if (fullInput.isNotEmpty) {'role': 'user', 'content': fullInput},
-          ],
-          'temperature': widget.config.temperature,
-          'max_tokens': widget.config.maxTokens,
-        },
-      );
-
-      final aiText = response.data['choices']?[0]?['message']?['content'] ?? '生成失败';
+      final aiService = ref.read(aiServiceProvider);
+      final messages = <Map<String, String>>[
+        {'role': 'system', 'content': widget.agent.systemPrompt},
+        if (fullInput.isNotEmpty) {'role': 'user', 'content': fullInput},
+      ];
+      final aiText = await aiService.chat(widget.config, messages);
       setState(() {
         _messages.add({'role': 'assistant', 'content': aiText});
         _isLoading = false;

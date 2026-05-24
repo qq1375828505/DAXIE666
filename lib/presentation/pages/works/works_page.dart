@@ -113,6 +113,7 @@ class WorksPage extends ConsumerWidget {
               if (context.mounted) {
                 Navigator.pop(context);
                 ref.read(selectedNovelProvider.notifier).state = novel;
+                loadNovelMaterials(ref, novel.id);
                 ref.read(bottomNavIndexProvider.notifier).state = 2;
               }
             },
@@ -197,6 +198,7 @@ class _NovelCard extends ConsumerWidget {
       child: InkWell(
         onTap: () {
           ref.read(selectedNovelProvider.notifier).state = novel;
+          loadNovelMaterials(ref, novel.id);
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => NovelDetailPage(novel: novel)),

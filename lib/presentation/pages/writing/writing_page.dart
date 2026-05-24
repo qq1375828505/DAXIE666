@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
-import 'package:novel_ide/presentation/pages/works/works_page.dart';
 import 'package:novel_ide/presentation/pages/writing/editor_page.dart';
 
 class WritingPage extends ConsumerWidget {
