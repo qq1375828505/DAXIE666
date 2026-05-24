@@ -7,6 +7,7 @@ import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/services/config_service.dart';
+import 'package:novel_ide/presentation/pages/stats/stats_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -95,6 +96,19 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          // Stats entry
+          ListTile(
+            leading: const Icon(Icons.bar_chart, color: AppColors.primary),
+            title: const Text('写作统计'),
+            subtitle: const Text('查看字数趋势和打卡记录'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StatsPage()),
+              );
+            },
           ),
           const Divider(),
 

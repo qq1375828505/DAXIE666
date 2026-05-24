@@ -11,7 +11,9 @@ import 'package:novel_ide/data/repositories/novel_repository.dart';
 import 'package:novel_ide/data/repositories/chapter_repository.dart';
 import 'package:novel_ide/data/repositories/volume_repository.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
+import 'package:novel_ide/data/repositories/stats_repository.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
+import 'package:novel_ide/data/services/config_service.dart';
 
 final novelRepoProvider = Provider((ref) => NovelRepository());
 final chapterRepoProvider = Provider((ref) => ChapterRepository());
@@ -172,4 +174,11 @@ Future<void> loadNovelMaterials(WidgetRef ref, String novelId) async {
 /// Load all data on app startup
 Future<void> loadAllData(WidgetRef ref) async {
   await loadAiConfigs(ref);
+  // Load streak from persistence
+  ref.read(streakDaysProvider.notifier).state = ConfigService.streakDays;
 }
+
+// --- Stats ---
+final statsRepoProvider = Provider((ref) => StatsRepository());
+final todayWordsProvider = StateProvider<int>((ref) => 0);
+final totalWordsProvider = StateProvider<int>((ref) => 0);

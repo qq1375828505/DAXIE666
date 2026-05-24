@@ -75,12 +75,24 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (novel == null) return;
     final chapter = await ref.read(chapterRepoProvider).getChapter(widget.chapterId);
     if (chapter == null) return;
+    final newWordCount = _controller.text.length;
+    final oldWordCount = chapter.wordCount;
     final updated = chapter.copyWith(
       content: _controller.text,
-      wordCount: _controller.text.length,
+      wordCount: newWordCount,
       updatedAt: DateTime.now(),
     );
     await ref.read(chapterRepoProvider).updateChapter(updated, novel.title);
+
+    // Record daily word count delta
+    final delta = newWordCount - oldWordCount;
+    if (delta > 0) {
+      await ref.read(statsRepoProvider).recordWords(novel.id, delta);
+      // Refresh today's count
+      final todayWords = await ref.read(statsRepoProvider).getTodayWords();
+      ref.read(todayWordsProvider.notifier).state = todayWords;
+    }
+
     ref.read(saveStatusProvider.notifier).state = '已保存 ${DateFormat('HH:mm').format(DateTime.now())}';
     ref.invalidate(chaptersProvider(widget.novelId));
   }
