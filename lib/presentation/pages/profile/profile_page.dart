@@ -8,6 +8,7 @@ import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/services/config_service.dart';
 import 'package:novel_ide/presentation/pages/stats/stats_page.dart';
+import 'package:novel_ide/data/services/model_test_service.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -241,70 +242,181 @@ class ProfilePage extends ConsumerWidget {
     final urlCtrl = TextEditingController(text: 'https://api.openai.com/v1/chat/completions');
     final modelCtrl = TextEditingController(text: 'gpt-3.5-turbo');
     final keyCtrl = TextEditingController();
+    ApiProtocol selectedProtocol = ApiProtocol.openaiCompatible;
+    bool isTesting = false;
+    bool isFetchingModels = false;
+    List<String> fetchedModels = [];
+
+    // Update URL based on protocol
+    void updateUrlForProtocol(ApiProtocol protocol) {
+      if (protocol == ApiProtocol.anthropic) {
+        urlCtrl.text = 'https://api.anthropic.com/v1/messages';
+        modelCtrl.text = 'claude-sonnet-4-20250514';
+      } else {
+        urlCtrl.text = 'https://api.openai.com/v1/chat/completions';
+        modelCtrl.text = 'gpt-3.5-turbo';
+      }
+    }
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加AI模型'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: '名称', hintText: '例如：DeepSeek'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlCtrl,
-                decoration: const InputDecoration(labelText: 'API地址'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: modelCtrl,
-                decoration: const InputDecoration(labelText: '模型名'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: keyCtrl,
-                decoration: const InputDecoration(labelText: 'API Key'),
-                obscureText: true,
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('添加AI模型'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Protocol selector
+                const Text('API 协议', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                SegmentedButton<ApiProtocol>(
+                  segments: const [
+                    ButtonSegment(value: ApiProtocol.openaiCompatible, label: Text('OpenAI 兼容'), icon: Icon(Icons.language, size: 16)),
+                    ButtonSegment(value: ApiProtocol.anthropic, label: Text('Anthropic'), icon: Icon(Icons.smart_toy, size: 16)),
+                  ],
+                  selected: {selectedProtocol},
+                  onSelectionChanged: (sel) {
+                    selectedProtocol = sel.first;
+                    updateUrlForProtocol(selectedProtocol);
+                    setDialogState(() {});
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称', hintText: '例如：DeepSeek / Claude')),
+                const SizedBox(height: 12),
+                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址')),
+                const SizedBox(height: 12),
+                // Model field with fetch button
+                Row(
+                  children: [
+                    Expanded(
+                      child: fetchedModels.isNotEmpty
+                          ? DropdownButtonFormField<String>(
+                              value: fetchedModels.contains(modelCtrl.text) ? modelCtrl.text : null,
+                              hint: Text(modelCtrl.text.isEmpty ? '选择模型' : modelCtrl.text),
+                              items: fetchedModels.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 13)))).toList(),
+                              onChanged: (v) {
+                                if (v != null) modelCtrl.text = v;
+                                setDialogState(() {});
+                              },
+                              decoration: const InputDecoration(labelText: '模型名'),
+                            )
+                          : TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型名', hintText: '例如：gpt-4o / claude-sonnet-4-20250514')),
+                    ),
+                    const SizedBox(width: 8),
+                    // Fetch models button
+                    IconButton(
+                      icon: isFetchingModels
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.download, size: 20),
+                      tooltip: '获取模型列表',
+                      onPressed: isFetchingModels ? null : () async {
+                        setDialogState(() => isFetchingModels = true);
+                        try {
+                          final tempConfig = AiConfig(
+                            id: 'temp', name: 'temp',
+                            apiUrl: urlCtrl.text, modelName: modelCtrl.text,
+                            apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
+                            protocol: selectedProtocol,
+                          );
+                          final models = await ModelTestService().fetchModels(tempConfig);
+                          setDialogState(() {
+                            fetchedModels = models;
+                            isFetchingModels = false;
+                          });
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('获取到 ${models.length} 个模型')),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isFetchingModels = false);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('获取失败: $e')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: keyCtrl, decoration: const InputDecoration(labelText: 'API Key', hintText: '可选（本地模型可不填）'), obscureText: true),
+                const SizedBox(height: 12),
+                // Test connection button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: isTesting
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.wifi_find, size: 18),
+                    label: Text(isTesting ? '测试中...' : '测试连接'),
+                    onPressed: isTesting ? null : () async {
+                      setDialogState(() => isTesting = true);
+                      try {
+                        final tempConfig = AiConfig(
+                          id: 'temp', name: 'temp',
+                          apiUrl: urlCtrl.text, modelName: modelCtrl.text,
+                          apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
+                          protocol: selectedProtocol,
+                        );
+                        final result = await ModelTestService().testConnection(tempConfig);
+                        setDialogState(() => isTesting = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result), backgroundColor: Colors.green),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isTesting = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            FilledButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty || urlCtrl.text.trim().isEmpty) return;
+                final config = AiConfig(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: nameCtrl.text.trim(),
+                  apiUrl: urlCtrl.text.trim(),
+                  modelName: modelCtrl.text.trim(),
+                  protocol: selectedProtocol,
+                );
+                if (keyCtrl.text.isNotEmpty) {
+                  await SecureStorageDataSource().writeApiKey(config.id, keyCtrl.text.trim());
+                }
+                await DatabaseHelper().insertAiConfig({
+                  'id': config.id,
+                  'name': config.name,
+                  'api_url': config.apiUrl,
+                  'model_name': config.modelName,
+                  'temperature': config.temperature,
+                  'max_tokens': config.maxTokens,
+                  'is_local': config.isLocal ? 1 : 0,
+                });
+                final currentList = ref.read(aiConfigsProvider);
+                ref.read(aiConfigsProvider.notifier).state = [...currentList, config];
+                ref.read(selectedAiConfigProvider.notifier).state = config;
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('保存'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty || urlCtrl.text.trim().isEmpty) return;
-              final config = AiConfig(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameCtrl.text.trim(),
-                apiUrl: urlCtrl.text.trim(),
-                modelName: modelCtrl.text.trim(),
-              );
-              if (keyCtrl.text.isNotEmpty) {
-                await SecureStorageDataSource().writeApiKey(config.id, keyCtrl.text.trim());
-              }
-              // Persist to SQLite
-              await DatabaseHelper().insertAiConfig({
-                'id': config.id,
-                'name': config.name,
-                'api_url': config.apiUrl,
-                'model_name': config.modelName,
-                'temperature': config.temperature,
-                'max_tokens': config.maxTokens,
-                'is_local': config.isLocal ? 1 : 0,
-              });
-              final currentList = ref.read(aiConfigsProvider);
-              ref.read(aiConfigsProvider.notifier).state = [...currentList, config];
-              ref.read(selectedAiConfigProvider.notifier).state = config;
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
       ),
     );
   }
