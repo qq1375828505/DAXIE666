@@ -34,40 +34,20 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
   @override
   Widget build(BuildContext context) {
     final selectedNovel = ref.watch(selectedNovelProvider);
-    if (selectedNovel == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('资料')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.inventory_2, size: 64, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text('先选择一部作品', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
-                child: const Text('去选择作品'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('${selectedNovel.title} · 资料'),
+        title: Text(selectedNovel == null ? '资料' : '${selectedNovel.title} · 资料'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: '导出',
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ExportPage(novelId: selectedNovel.id, novelTitle: selectedNovel.title),
-              ));
-            },
-          ),
+          if (selectedNovel != null)
+            IconButton(
+              icon: const Icon(Icons.file_download_outlined),
+              tooltip: '导出',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ExportPage(novelId: selectedNovel.id, novelTitle: selectedNovel.title),
+                ));
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: '设置',
@@ -79,38 +59,58 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: '角色'),
-            Tab(text: '设定'),
-            Tab(text: '地点'),
-            Tab(text: '势力'),
-            Tab(text: '道具'),
-            Tab(text: '伏笔'),
-            Tab(text: '参考'),
-            Tab(text: '记忆'),
-          ],
-        ),
+        bottom: selectedNovel != null
+            ? TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabs: const [
+                  Tab(text: '角色'),
+                  Tab(text: '设定'),
+                  Tab(text: '地点'),
+                  Tab(text: '势力'),
+                  Tab(text: '道具'),
+                  Tab(text: '伏笔'),
+                  Tab(text: '参考'),
+                  Tab(text: '记忆'),
+                ],
+              )
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _CharacterTab(novelId: selectedNovel.id),
-          _SettingTab(novelId: selectedNovel.id),
-          _LocationTab(novelId: selectedNovel.id),
-          _FactionTab(novelId: selectedNovel.id),
-          _ItemTab(novelId: selectedNovel.id),
-          _HookTab(novelId: selectedNovel.id),
-          _ReferenceTab(novelId: selectedNovel.id),
-          _MemoryTab(novelId: selectedNovel.id, novelTitle: selectedNovel.title),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(selectedNovel.id),
-        child: const Icon(Icons.add),
-      ),
+      body: selectedNovel == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text('先选择一部作品', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
+                    child: const Text('去选择作品'),
+                  ),
+                ],
+              ),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _CharacterTab(novelId: selectedNovel.id),
+                _SettingTab(novelId: selectedNovel.id),
+                _LocationTab(novelId: selectedNovel.id),
+                _FactionTab(novelId: selectedNovel.id),
+                _ItemTab(novelId: selectedNovel.id),
+                _HookTab(novelId: selectedNovel.id),
+                _ReferenceTab(novelId: selectedNovel.id),
+                _MemoryTab(novelId: selectedNovel.id, novelTitle: selectedNovel.title),
+              ],
+            ),
+      floatingActionButton: selectedNovel == null
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _showAddDialog(selectedNovel.id),
+              child: const Icon(Icons.add),
+            ),
     );
   }
 

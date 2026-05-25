@@ -19,9 +19,34 @@ class ModelTestService {
         data: _buildTestPayload(config),
       );
 
-      if (response.statusCode == 200) {
-        final content = response.data['choices']?[0]?['message']?['content'] ?? '';
-        return '连接成功! 模型响应: ${content.substring(0, content.length.clamp(0, 50))}';
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        String? content;
+        // 解析响应内容
+        if (config.protocol == ApiProtocol.anthropic) {
+          // 解析 Anthropic 响应格式
+          final responseData = response.data;
+          if (responseData is Map && responseData['content'] is List && (responseData['content'] as List).isNotEmpty) {
+            final firstContent = (responseData['content'] as List);
+            if (firstContent[0] is Map && firstContent[0]['text'] is String) {
+              content = firstContent[0]['text'] as String?;
+            }
+          }
+        } else {
+          // 解析 OpenAI 兼容格式
+          if (response.data is Map) {
+            final choices = response.data['choices'];
+            if (choices is List && choices.isNotEmpty && choices[0] is Map) {
+              final message = choices[0]['message'];
+              if (message is Map && message['content'] is String) {
+                content = message['content'] as String?;
+              }
+            }
+          }
+        }
+        // 如果没有解析到内容，也返回成功
+        return content != null && content.isNotEmpty
+            ? '连接成功! 模型响应: ${content.substring(0, content.length.clamp(0, 50))}'
+            : '连接成功！';
       }
       return '连接成功 (HTTP ${response.statusCode})';
     } on DioException catch (e) {
@@ -36,7 +61,27 @@ class ModelTestService {
       if (e.response?.statusCode == 403) {
         throw Exception('API Key 无权限 (403 Forbidden)');
       }
-      throw Exception('连接失败: ${e.message}');
+      // 改进错误信息显示
+      String errorMsg = '连接失败';
+      if (e.response?.data != null) {
+        try {
+          final errorData = e.response?.data;
+          if (errorData is Map && errorData['error'] != null) {
+            final error = errorData['error'];
+            if (error is Map && error['message'] is String) {
+              errorMsg += ': ${error['message']}';
+            }
+          } else if (errorData is String) {
+            errorMsg += ': $errorData';
+          }
+        } catch (_) {
+          // 忽略解析错误
+        }
+      }
+      if (errorMsg == '连接失败' && e.message != null) {
+        errorMsg += ': ${e.message}';
+      }
+      throw Exception(errorMsg);
     }
   }
 
