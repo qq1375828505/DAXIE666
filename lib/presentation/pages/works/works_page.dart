@@ -39,7 +39,8 @@ class WorksPage extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.folder_open_outlined),
+            icon: const Icon(Icons.add_circle_outline, size: 26),
+            tooltip: '导入',
             onPressed: () => _showImportDialog(context, ref),
           ),
         ],
@@ -146,60 +147,70 @@ class WorksPage extends ConsumerWidget {
   void _showImportDialog(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('导入作品', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2, color: AppColors.primary),
-              title: const Text('导入 .novelpack 作品包'),
-              subtitle: const Text('从压缩包导入完整作品'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.any,
-                );
-                if (result != null && result.files.single.path != null) {
-                  try {
-                    final fs = LocalFileDataSource();
-                    await fs.importNovelPack(result.files.single.path!);
-                    ref.invalidate(novelsProvider);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('导入成功')),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('导入失败: $e')),
-                      );
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 拖拽指示条
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 文件选项
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.description_outlined, color: AppColors.primary),
+                ),
+                title: const Text('文件', style: TextStyle(fontSize: 16)),
+                subtitle: const Text('选择 TXT、DOCX、MD 等文件导入', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final result = await FilePicker.platform.pickFiles(
+                    dialogTitle: '选择小说文件',
+                    type: FileType.custom,
+                    allowedExtensions: ['txt', 'md', 'docx'],
+                  );
+                  if (result != null && result.files.single.path != null) {
+                    try {
+                      final fs = LocalFileDataSource();
+                      await fs.importNovelPack(result.files.single.path!);
+                      ref.invalidate(novelsProvider);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('导入成功')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('导入失败: $e')),
+                        );
+                      }
                     }
                   }
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_open, color: AppColors.secondary),
-              title: const Text('导入源文件目录'),
-              subtitle: const Text('从Markdown/JSON源文件目录导入'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final result = await FilePicker.platform.getDirectoryPath();
-                if (result != null) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('已从 $result 导入')),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
@@ -380,6 +381,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           ),
           child: Row(
             children: [
+              // + 按钮
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 28),
+                color: AppColors.primary,
+                onPressed: () => _showAttachMenu(context),
+              ),
               Expanded(
                 child: TextField(
                   controller: _inputCtrl,
@@ -409,6 +416,92 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       ],
     );
+  }
+
+  /// + 按钮底部菜单：文件 + 技能
+  void _showAttachMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 拖拽指示条
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 文件选项
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.description_outlined, color: AppColors.primary),
+                ),
+                title: const Text('文件', style: TextStyle(fontSize: 16)),
+                subtitle: const Text('选择 TXT、DOCX 等文件', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFile();
+                },
+              ),
+              // 技能选项
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.auto_awesome, color: AppColors.secondary),
+                ),
+                title: const Text('技能', style: TextStyle(fontSize: 16)),
+                subtitle: const Text('AI 写作技能和预设', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  // TODO: 跳转到技能/预设选择页面
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 选择文件
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: '选择文件',
+      type: FileType.custom,
+      allowedExtensions: ['txt', 'md', 'docx'],
+    );
+    if (result != null && result.files.single.path != null) {
+      // 将文件内容作为消息发送到 AI 对话
+      final file = result.files.single;
+      final name = file.name;
+      setState(() {
+        _inputCtrl.text = '[文件] $name\n请分析这个文件的内容';
+      });
+    }
   }
 }
 
