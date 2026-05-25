@@ -9,6 +9,7 @@ import 'package:novel_ide/data/models/tomato_preset_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/notification_service.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
+import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/presentation/pages/ai/ai_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/search_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/setting_reminder_page.dart';
@@ -414,14 +415,31 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   @override
   void dispose() {
-    _saveChapter();
+    // 先取消定时器，再强制同步保存
     _autoSaveTimer?.cancel();
     _snapshotTimer?.cancel();
+    // 强制保存：直接写文件，不依赖 ref（dispose 后 ref 可能失效）
+    _forceSaveOnDispose();
     _controller.dispose();
     _scrollController.dispose();
     _findCtrl.dispose();
     _speech.stop();
     super.dispose();
+  }
+
+  /// dispose 时强制保存到文件系统（不依赖 Riverpod）
+  Future<void> _forceSaveOnDispose() async {
+    try {
+      final content = _controller.text;
+      if (content.isEmpty) return;
+      final novel = ref.read(selectedNovelProvider);
+      if (novel == null) return;
+      final fs = LocalFileDataSource();
+      final projectPath = await fs.getProjectDir(widget.novelId, novel.title);
+      await fs.saveChapterContent(projectPath, widget.chapterId, content);
+    } catch (e) {
+      debugPrint('dispose 强制保存失败: $e');
+    }
   }
 
   @override

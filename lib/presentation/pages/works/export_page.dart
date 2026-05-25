@@ -79,8 +79,8 @@ class _ExportPageState extends State<ExportPage> {
     });
   }
 
-  /// Export selected data as TXT in a zip, then share.
-  Future<void> _doExport() async {
+  /// Export selected data as TXT in a zip, then save locally or share.
+  Future<void> _doExport({bool shareOnly = false}) async {
     setState(() {});
     try {
       final tempDir = await getTemporaryDirectory();
@@ -293,9 +293,34 @@ class _ExportPageState extends State<ExportPage> {
       final zipBytes = encoder.encode(archive)!;
       await File(zipPath).writeAsBytes(zipBytes);
 
-      // Share
-      final file = XFile(zipPath);
-      await Share.shareXFiles([file], text: '${widget.novelTitle} 作品导出');
+      if (shareOnly) {
+        // 分享模式：直接调用系统分享面板
+        final file = XFile(zipPath);
+        await Share.shareXFiles([file], text: '${widget.novelTitle} 作品导出');
+      } else {
+        // 保存到本地模式：让用户选择保存位置
+        final outputPath = await FilePicker.platform.saveFile(
+          dialogTitle: '选择保存位置',
+          fileName: '${widget.novelTitle}_导出.zip',
+          type: FileType.custom,
+          allowedExtensions: ['zip'],
+        );
+        if (outputPath != null) {
+          await File(zipPath).copy(outputPath);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('已保存到: $outputPath')),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('未选择保存位置')),
+            );
+          }
+          return;
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -319,7 +344,7 @@ class _ExportPageState extends State<ExportPage> {
         title: Text('导出 · ${widget.novelTitle}'),
         actions: [
           TextButton(
-            onPressed: _isLoadingChapters ? null : _doExport,
+            onPressed: _isLoadingChapters ? null : () => _doExport(shareOnly: false),
             child: const Text('导出', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
@@ -463,19 +488,36 @@ class _ExportPageState extends State<ExportPage> {
                 ),
 
                 const SizedBox(height: 24),
-                // Export button
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.download),
-                  label: Text('导出 (${_selectedChapterIds.length}章 + 资料)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: _isLoadingChapters ? null : _doExport,
+                // Export buttons: Save + Share
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.save_alt),
+                        label: Text('保存到本地 (${_selectedChapterIds.length}章 + 资料)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: _isLoadingChapters ? null : () => _doExport(shareOnly: false),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.share),
+                        label: const Text('分享'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: _isLoadingChapters ? null : () => _doExport(shareOnly: true),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '导出为 ZIP 压缩包，内部文件均为 TXT 格式',
+                  '保存到本地：选择位置保存 ZIP 文件\n分享：通过 QQ/微信 等发送',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),

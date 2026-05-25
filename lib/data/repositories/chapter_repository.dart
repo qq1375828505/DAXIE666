@@ -59,7 +59,10 @@ class ChapterRepository {
     final maps = await db.query('chapters', where: 'id = ?', whereArgs: [chapterId]);
     if (maps.isEmpty) return null;
     final m = maps.first;
-    final projectPath = await _fs.getProjectDir(m['novel_id'] as String, '');
+    // 从 novels 表获取 title，确保路径与写入时一致
+    final novelMaps = await db.query('novels', where: 'id = ?', whereArgs: [m['novel_id']]);
+    final novelTitle = novelMaps.isNotEmpty ? (novelMaps.first['title'] as String) : '';
+    final projectPath = await _fs.getProjectDir(m['novel_id'] as String, novelTitle);
     final content = await _fs.readChapterContent(projectPath, chapterId);
     return Chapter(
       id: m['id'] as String,
@@ -111,7 +114,7 @@ class ChapterRepository {
     return chapter;
   }
 
-  Future<void> updateChapter(Chapter chapter, String novelTitle) async {
+  Future<void> updateChapter(Chapter chapter, [String? novelTitle]) async {
     final db = await _db.database;
     final now = DateTime.now();
     await db.update('chapters', {
@@ -123,6 +126,11 @@ class ChapterRepository {
       'updated_at': now.millisecondsSinceEpoch,
     }, where: 'id = ?', whereArgs: [chapter.id]);
 
+    // 自动从数据库获取 novelTitle，确保路径一致性
+    if (novelTitle == null || novelTitle.isEmpty) {
+      final novelMaps = await db.query('novels', where: 'id = ?', whereArgs: [chapter.novelId]);
+      novelTitle = novelMaps.isNotEmpty ? (novelMaps.first['title'] as String) : '';
+    }
     final projectPath = await _fs.getProjectDir(chapter.novelId, novelTitle);
     await _fs.saveChapterContent(projectPath, chapter.id, chapter.content);
   }
