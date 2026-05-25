@@ -268,6 +268,76 @@ class _ChapterTile extends ConsumerWidget {
           ),
         );
       },
+      onLongPress: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('重命名'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showRenameChapterDialog(context, ref, chapter);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('删除', style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('删除 ${chapter.title}？'),
+                        content: const Text('此操作不可恢复'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('删除'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await ref.read(chapterRepoProvider).deleteChapter(chapter.id);
+                      ref.invalidate(chaptersProvider(novel.id));
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
+}
+
+void _showRenameChapterDialog(BuildContext context, WidgetRef ref, Chapter chapter) {
+  final ctrl = TextEditingController(text: chapter.title);
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('重命名章节'),
+      content: TextField(controller: ctrl, autofocus: true),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(
+          onPressed: () async {
+            if (ctrl.text.trim().isEmpty) return;
+            final updated = chapter.copyWith(title: ctrl.text.trim());
+            await ref.read(chapterRepoProvider).updateChapter(updated, '');
+            ref.invalidate(chaptersProvider(chapter.novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
 }

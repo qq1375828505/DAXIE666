@@ -444,6 +444,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           ],
         ),
         actions: [
+          // Manual save button
+          IconButton(
+            icon: const Icon(Icons.save, size: 22),
+            tooltip: '保存',
+            onPressed: _saveChapter,
+          ),
           if (_showFindBar)
             SizedBox(
               width: 150,
@@ -473,11 +479,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       ),
       body: Column(
         children: [
-          StyleSelectorBar(
-            onPresetSelected: (preset) {
-              ref.read(currentPresetProvider.notifier).state = preset;
-            },
-          ),
           if (!isOnline)
             Container(
               width: double.infinity,
@@ -583,20 +584,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   children: [
                     IconButton(icon: const Icon(Icons.undo, size: 22), onPressed: _undo),
                     IconButton(icon: const Icon(Icons.redo, size: 22), onPressed: _redo),
-                    const VerticalDivider(width: 1),
-                    IconButton(
-                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, size: 22),
-                      color: _isListening ? AppColors.primary : null,
-                      onPressed: _toggleSpeech,
-                    ),
                     const Spacer(),
-                    if (currentPreset != null)
-                      Chip(
-                        label: Text(currentPreset.name, style: const TextStyle(fontSize: 11)),
-                        backgroundColor: AppColors.tomatoRed.withOpacity(0.1),
-                        side: BorderSide.none,
-                        visualDensity: VisualDensity.compact,
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.save_alt, size: 22),
+                      tooltip: '保存',
+                      onPressed: _saveChapter,
+                    ),
                   ],
                 ),
               ),

@@ -207,6 +207,52 @@ class _NovelCard extends ConsumerWidget {
             MaterialPageRoute(builder: (_) => NovelDetailPage(novel: novel)),
           );
         },
+        onLongPress: () {
+          showModalBottomSheet(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('重命名'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showRenameNovelDialog(context, ref, novel);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('删除作品', style: TextStyle(color: Colors.red)),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: Text('删除「${novel.title}」？'),
+                          content: const Text('所有章节和资料将被删除，此操作不可恢复'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('删除'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await ref.read(novelRepoProvider).deleteNovel(novel.id, novel.title);
+                        ref.invalidate(novelsProvider);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -315,4 +361,28 @@ class _StatChip extends StatelessWidget {
       ],
     );
   }
+}
+
+void _showRenameNovelDialog(BuildContext context, WidgetRef ref, Novel novel) {
+  final ctrl = TextEditingController(text: novel.title);
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('重命名作品'),
+      content: TextField(controller: ctrl, autofocus: true),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(
+          onPressed: () async {
+            if (ctrl.text.trim().isEmpty) return;
+            final updated = novel.copyWith(title: ctrl.text.trim());
+            await ref.read(novelRepoProvider).updateNovel(updated);
+            ref.invalidate(novelsProvider);
+            if (ctx.mounted) Navigator.pop(ctx);
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
 }
