@@ -31,8 +31,8 @@ Future<void> _requestPermissions() async {
   final storage = await Permission.storage.request();
   final manageStorage = await Permission.manageExternalStorage.request();
   final notification = await Permission.notification.request();
-  // Log results for debugging
-  debugPrint('Storage: $storage, ManageStorage: $manageStorage, Notification: $notification');
+  final mic = await Permission.microphone.request();
+  debugPrint('Storage: $storage, ManageStorage: $manageStorage, Notification: $notification, Mic: $mic');
 }
 
 class NovelIdeApp extends ConsumerStatefulWidget {
