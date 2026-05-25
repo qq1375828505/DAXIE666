@@ -6,6 +6,7 @@ import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:uuid/uuid.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
+import 'package:novel_ide/presentation/pages/profile/profile_page.dart';
 
 class MaterialsPage extends ConsumerStatefulWidget {
   const MaterialsPage({super.key});
@@ -56,6 +57,18 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
     return Scaffold(
       appBar: AppBar(
         title: Text('${selectedNovel.title} · 资料'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '设置',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,

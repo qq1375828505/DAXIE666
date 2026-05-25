@@ -14,6 +14,7 @@ import 'package:novel_ide/presentation/pages/ai/search_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/setting_reminder_page.dart';
 import 'package:novel_ide/presentation/pages/ai/polish_engine_page.dart';
 import 'package:novel_ide/presentation/pages/tomato/style_selector_bar.dart';
+import 'package:novel_ide/presentation/pages/works/export_page.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:intl/intl.dart';
 
@@ -444,6 +445,23 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           ],
         ),
         actions: [
+          // Export button
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined, size: 22),
+            tooltip: '导出',
+            onPressed: () {
+              final novel = ref.read(selectedNovelProvider);
+              if (novel != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ExportPage(
+                    novelId: novel.id,
+                    novelTitle: novel.title,
+                  )),
+                );
+              }
+            },
+          ),
           // Manual save button
           IconButton(
             icon: const Icon(Icons.save, size: 22),

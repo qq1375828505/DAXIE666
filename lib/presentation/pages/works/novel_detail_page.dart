@@ -99,6 +99,30 @@ class NovelDetailPage extends ConsumerWidget {
       ),
     );
   }
+
+  void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume) {
+    final ctrl = TextEditingController(text: volume.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名卷'),
+        content: TextField(controller: ctrl, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () async {
+              if (ctrl.text.trim().isEmpty) return;
+              final updated = volume.copyWith(title: ctrl.text.trim());
+              await ref.read(volumeRepoProvider).updateVolume(updated);
+              ref.invalidate(volumesProvider(novel.id));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ChapterTreeView extends ConsumerWidget {
@@ -120,38 +144,91 @@ class _ChapterTreeView extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 卷头
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.05),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '第${volumeIndex + 1}卷',
-                        style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+              // 卷头 - 长按可重命名/删除
+              GestureDetector(
+                onLongPress: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (ctx) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.edit),
+                            title: const Text('重命名卷'),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showRenameVolumeDialog(context, ref, volume);
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.delete, color: Colors.red),
+                            title: const Text('删除卷', style: TextStyle(color: Colors.red)),
+                            onTap: () async {
+                              Navigator.pop(ctx);
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx2) => AlertDialog(
+                                  title: Text('删除 ${volume.title}？'),
+                                  content: const Text('此操作将同时删除该卷下所有章节，不可恢复'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx2, false), child: const Text('取消')),
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                      onPressed: () => Navigator.pop(ctx2, true),
+                                      child: const Text('删除'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                // Delete all chapters in this volume first
+                                for (final ch in volumeChapters) {
+                                  await ref.read(chapterRepoProvider).deleteChapter(ch.id);
+                                }
+                                await ref.read(volumeRepoProvider).deleteVolume(volume.id);
+                                ref.invalidate(volumesProvider(novel.id));
+                                ref.invalidate(chaptersProvider(novel.id));
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        volume.title,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.05),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '第${volumeIndex + 1}卷',
+                          style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 20),
-                      onPressed: () => _showAddChapterDialog(context, ref, volume),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          volume.title,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 20),
+                        onPressed: () => _showAddChapterDialog(context, ref, volume),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               // 章节列表

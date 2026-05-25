@@ -6,7 +6,6 @@ import 'package:novel_ide/presentation/pages/writing/writing_page.dart';
 import 'package:novel_ide/presentation/pages/works/works_page.dart';
 import 'package:novel_ide/presentation/pages/outline/outline_page.dart';
 import 'package:novel_ide/presentation/pages/materials/materials_page.dart';
-import 'package:novel_ide/presentation/pages/profile/profile_page.dart';
 import 'package:novel_ide/presentation/pages/ai/ai_chat_page.dart';
 
 class MainShell extends ConsumerWidget {
@@ -21,7 +20,6 @@ class MainShell extends ConsumerWidget {
       const WorksPage(),
       const OutlinePage(),
       const MaterialsPage(),
-      const ProfilePage(),
       const AiChatPage(),
     ];
 
@@ -55,11 +53,6 @@ class MainShell extends ConsumerWidget {
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
             label: '资料',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '我的',
           ),
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),

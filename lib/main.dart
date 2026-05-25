@@ -7,6 +7,7 @@ import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/config_service.dart';
 import 'package:novel_ide/data/services/connectivity_service.dart';
 import 'package:novel_ide/data/services/notification_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,11 +16,23 @@ void main() async {
   ConnectivityService.startMonitoring();
   await NotificationService.init();
 
+  // Request storage permissions at startup
+  await _requestPermissions();
+
   runApp(
     const ProviderScope(
       child: NovelIdeApp(),
     ),
   );
+}
+
+Future<void> _requestPermissions() async {
+  // Request storage permissions
+  final storage = await Permission.storage.request();
+  final manageStorage = await Permission.manageExternalStorage.request();
+  final notification = await Permission.notification.request();
+  // Log results for debugging
+  debugPrint('Storage: $storage, ManageStorage: $manageStorage, Notification: $notification');
 }
 
 class NovelIdeApp extends ConsumerStatefulWidget {
