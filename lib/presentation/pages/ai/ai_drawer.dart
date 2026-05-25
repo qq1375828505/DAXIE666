@@ -191,6 +191,8 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final configs = ref.watch(aiConfigsProvider);
+    final selectedConfig = ref.watch(selectedAiConfigProvider);
     return Container(
       height: MediaQuery.of(context).size.height * 0.55,
       decoration: BoxDecoration(
@@ -218,6 +220,71 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
                 const Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 const Text('AI写作助手', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                // 模型选择器
+                if (configs.isNotEmpty)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.smart_toy, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            selectedConfig?.name ?? '',
+                            style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500),
+                          ),
+                          const Icon(Icons.arrow_drop_down, size: 14, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'add_new') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('请到「我的」页面添加新模型配置')),
+                        );
+                      } else {
+                        final config = configs.firstWhere((c) => c.id == value);
+                        ref.read(selectedAiConfigProvider.notifier).state = config;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      ...configs.map((c) => PopupMenuItem(
+                        value: c.id,
+                        child: Row(
+                          children: [
+                            Icon(c.id == selectedConfig?.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                size: 16, color: c.id == selectedConfig?.id ? AppColors.primary : Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(c.name, style: const TextStyle(fontSize: 14)),
+                                Text('${c.modelName}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                              ]),
+                            ),
+                          ],
+                        ),
+                      )),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'add_new',
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Text('添加新模型', style: TextStyle(color: AppColors.primary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),

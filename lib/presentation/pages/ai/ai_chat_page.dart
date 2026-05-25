@@ -186,8 +186,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             onPressed: _newSession,
             tooltip: '新建会话',
           ),
-          // Model selector
-          if (configs.length > 1)
+          // Model selector (always show)
+          if (configs.isNotEmpty)
             PopupMenuButton<String>(
               icon: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -198,24 +198,58 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   const Icon(Icons.arrow_drop_down, size: 16),
                 ],
               ),
-              onSelected: (configId) {
-                final config = configs.firstWhere((c) => c.id == configId);
-                ref.read(selectedAiConfigProvider.notifier).state = config;
+              onSelected: (value) {
+                if (value == 'add_new') {
+                  // 提示用户去 profile 页面添加新模型
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('请到「我的」页面添加新模型配置')),
+                  );
+                } else if (value != 'settings') {
+                  final config = configs.firstWhere((c) => c.id == value);
+                  ref.read(selectedAiConfigProvider.notifier).state = config;
+                }
               },
-              itemBuilder: (context) => configs.map((c) => PopupMenuItem(
-                value: c.id,
-                child: Row(
-                  children: [
-                    Icon(c.id == selectedConfig?.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                        size: 16, color: c.id == selectedConfig?.id ? AppColors.primary : Colors.grey),
-                    const SizedBox(width: 8),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(c.name, style: const TextStyle(fontSize: 14)),
-                      Text('${c.modelName}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                    ]),
-                  ],
+              itemBuilder: (context) => [
+                // Add a "go to settings" option
+                if (configs.isEmpty)
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.settings, size: 16),
+                        SizedBox(width: 8),
+                        Text('去配置模型'),
+                      ],
+                    ),
+                  ),
+                ...configs.map((c) => PopupMenuItem(
+                  value: c.id,
+                  child: Row(
+                    children: [
+                      Icon(c.id == selectedConfig?.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                          size: 16, color: c.id == selectedConfig?.id ? AppColors.primary : Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(c.name, style: const TextStyle(fontSize: 14)),
+                          Text('${c.modelName}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                        ]),
+                      ),
+                    ],
+                  ),
+                )),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'add_new',
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
+                      SizedBox(width: 8),
+                      Text('添加新模型', style: TextStyle(color: AppColors.primary)),
+                    ],
+                  ),
                 ),
-              )).toList(),
+              ],
             ),
         ],
       ),

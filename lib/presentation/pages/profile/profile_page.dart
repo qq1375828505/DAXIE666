@@ -485,42 +485,126 @@ class _AiConfigTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isSelected = ref.watch(selectedAiConfigProvider)?.id == config.id;
-    return ListTile(
-      leading: Icon(Icons.smart_toy, color: isSelected ? AppColors.primary : Colors.grey),
-      title: Text(config.name),
-      subtitle: Text('${config.modelName} · ${config.isLocal ? '本地' : '云端'}'),
-      trailing: isSelected
-          ? const Icon(Icons.check_circle, color: AppColors.primary)
-          : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
-      onTap: () {
-        ref.read(selectedAiConfigProvider.notifier).state = config;
-      },
-      onLongPress: () {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('删除 ${config.name}？'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-                onPressed: () async {
-                  final list = ref.read(aiConfigsProvider).where((c) => c.id != config.id).toList();
-                  ref.read(aiConfigsProvider.notifier).state = list;
-                  if (ref.read(selectedAiConfigProvider)?.id == config.id) {
-                    ref.read(selectedAiConfigProvider.notifier).state = list.isNotEmpty ? list.first : null;
-                  }
-                  // Delete from SQLite and SecureStorage
-                  await DatabaseHelper().deleteAiConfig(config.id);
-                  await SecureStorageDataSource().deleteApiKey(config.id);
-                  Navigator.pop(context);
-                },
-                child: const Text('删除'),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: isSelected ? AppColors.primary.withOpacity(0.05) : Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected ? BorderSide(color: AppColors.primary, width: 2) : BorderSide.none,
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.grey[200],
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.smart_toy, color: isSelected ? Colors.white : Colors.grey[600], size: 22),
+        ),
+        title: Text(config.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${config.modelName}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(Icons.cloud, size: 12, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text('${config.apiUrl.split('/').take(3).join('/')}...', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(config.protocol == ApiProtocol.openaiCompatible ? 'OpenAI' : 'Anthropic', style: TextStyle(fontSize: 10, color: Colors.grey[700])),
+                  ),
+                ],
               ),
             ],
           ),
-        );
-      },
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('使用中', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500)),
+              ),
+            const SizedBox(width: 8),
+            PopupMenuButton(
+              icon: const Icon(Icons.more_vert, size: 20),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'use',
+                  enabled: !isSelected,
+                  child: const Row(children: [Icon(Icons.check_circle_outline, size: 18), SizedBox(width: 8), Text('使用这个模型')]),
+                ),
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('编辑配置')]),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(children: [Icon(Icons.delete_outline, size: 18, color: Colors.red), SizedBox(width: 8), Text('删除', style: TextStyle(color: Colors.red))]),
+                ),
+              ],
+              onSelected: (value) {
+                if (value == 'use') {
+                  ref.read(selectedAiConfigProvider.notifier).state = config;
+                } else if (value == 'delete') {
+                  _showDeleteConfirm(context, ref, config);
+                } else if (value == 'edit') {
+                  // TODO: 编辑功能可以后续实现
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('编辑功能开发中')));
+                }
+              },
+            ),
+          ],
+        ),
+        onTap: isSelected ? null : () {
+          ref.read(selectedAiConfigProvider.notifier).state = config;
+        },
+      ),
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, WidgetRef ref, AiConfig config) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('删除 ${config.name}？'),
+        content: const Text('删除后无法恢复，确定要删除这个配置吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              final list = ref.read(aiConfigsProvider).where((c) => c.id != config.id).toList();
+              ref.read(aiConfigsProvider.notifier).state = list;
+              if (ref.read(selectedAiConfigProvider)?.id == config.id) {
+                ref.read(selectedAiConfigProvider.notifier).state = list.isNotEmpty ? list.first : null;
+              }
+              await DatabaseHelper().deleteAiConfig(config.id);
+              await SecureStorageDataSource().deleteApiKey(config.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('删除'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -103,10 +103,44 @@ class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
 
   @override
   Widget build(BuildContext context) {
+    final configs = ref.watch(aiConfigsProvider);
+    final selectedConfig = ref.watch(selectedAiConfigProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('一键精修'),
         actions: [
+          // Model selector
+          if (configs.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.smart_toy, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(selectedConfig?.name ?? '', style: const TextStyle(fontSize: 12)),
+                  const Icon(Icons.arrow_drop_down, size: 16),
+                ],
+              ),
+              onSelected: (configId) {
+                final config = configs.firstWhere((c) => c.id == configId);
+                ref.read(selectedAiConfigProvider.notifier).state = config;
+              },
+              itemBuilder: (context) => configs.map((c) => PopupMenuItem(
+                value: c.id,
+                child: Row(
+                  children: [
+                    Icon(c.id == selectedConfig?.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                        size: 16, color: c.id == selectedConfig?.id ? AppColors.primary : Colors.grey),
+                    const SizedBox(width: 8),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(c.name, style: const TextStyle(fontSize: 14)),
+                      Text('${c.modelName}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ]),
+                  ],
+                ),
+              )).toList(),
+            ),
+          const SizedBox(width: 8),
           TextButton(
             onPressed: () => setState(() {
               _allEnabled = !_allEnabled;
