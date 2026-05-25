@@ -10,7 +10,7 @@ import 'package:novel_ide/data/services/novel_memory.dart';
 class AiChatSession {
   final String id;
   String title;
-  final List<Map<String, String>> messages;
+  List<Map<String, String>> messages;
   final DateTime createdAt;
 
   AiChatSession({
@@ -18,7 +18,7 @@ class AiChatSession {
     required this.title,
     List<Map<String, String>>? messages,
     DateTime? createdAt,
-  })  : messages = messages ?? [],
+  })  : messages = messages != null ? List.from(messages) : [],
         createdAt = createdAt ?? DateTime.now();
 }
 
@@ -89,6 +89,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         }
       } catch (_) {}
 
+      // Auto-compact if too many messages (>20 pairs = 40 messages)
+      if (_currentSession!.messages.length > 40) {
+        await _compactMessages(config);
+      }
+
       final aiService = ref.read(aiServiceProvider);
       final aiText = await aiService.send(
         config: config,
@@ -108,6 +113,29 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Compress old messages into a summary when conversation gets too long.
+  Future<void> _compactMessages(AiConfig config) async {
+    try {
+      final msgs = _currentSession!.messages;
+      // Take first 30 messages as context to summarize
+      final toSummarize = msgs.take(30).map((m) => '${m['role']}: ${m['content']}').join('\n');
+      final aiService = ref.read(aiServiceProvider);
+      final summary = await aiService.send(
+        config: config,
+        systemPrompt: '你是一个对话摘要助手。请将以下对话压缩为简短的摘要（200字以内），保留关键信息和上下文。',
+        userMessage: toSummarize,
+        taskType: 'chat',
+      );
+      // Replace old messages with summary + recent messages
+      setState(() {
+        _currentSession!.messages = [
+          {'role': 'system', 'content': '之前的对话摘要：$summary'},
+          ...msgs.skip(30),
+        ];
+      });
+    } catch (_) {}
   }
 
   void _scrollToBottom() {
