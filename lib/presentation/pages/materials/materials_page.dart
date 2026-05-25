@@ -5,6 +5,7 @@ import 'package:novel_ide/data/models/material_models.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:uuid/uuid.dart';
+import 'package:novel_ide/data/services/novel_memory.dart';
 
 class MaterialsPage extends ConsumerStatefulWidget {
   const MaterialsPage({super.key});
@@ -19,7 +20,7 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -66,6 +67,7 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
             Tab(text: '道具'),
             Tab(text: '伏笔'),
             Tab(text: '参考'),
+            Tab(text: '记忆'),
           ],
         ),
       ),
@@ -79,6 +81,7 @@ class _MaterialsPageState extends ConsumerState<MaterialsPage> with TickerProvid
           _ItemTab(novelId: selectedNovel.id),
           _HookTab(novelId: selectedNovel.id),
           _ReferenceTab(novelId: selectedNovel.id),
+          _MemoryTab(novelId: selectedNovel.id, novelTitle: selectedNovel.title),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -787,5 +790,78 @@ class _ItemTab extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+// --- V3: Memory Tab ---
+class _MemoryTab extends ConsumerStatefulWidget {
+  final String novelId;
+  final String novelTitle;
+  const _MemoryTab({required this.novelId, required this.novelTitle});
+
+  @override
+  ConsumerState<_MemoryTab> createState() => _MemoryTabState();
+}
+
+class _MemoryTabState extends ConsumerState<_MemoryTab> {
+  String _memoryContent = '';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMemory();
+  }
+
+  Future<void> _loadMemory() async {
+    final memory = NovelMemory(novelId: widget.novelId, novelTitle: widget.novelTitle);
+    final content = await memory.autoUpdate();
+    if (mounted) {
+      setState(() {
+        _memoryContent = content;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _loadMemory,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.psychology, size: 20, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            const Text('小说记忆文件', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.refresh, size: 18),
+                              onPressed: _loadMemory,
+                              tooltip: '刷新',
+                            ),
+                          ],
+                        ),
+                        const Divider(),
+                        Text('此文件记录了小说的完整状态，AI对话时自动读取。', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                        const SizedBox(height: 12),
+                        Text(_memoryContent, style: const TextStyle(fontSize: 13, height: 1.6, fontFamily: 'monospace')),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
   }
 }

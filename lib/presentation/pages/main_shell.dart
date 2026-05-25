@@ -7,6 +7,7 @@ import 'package:novel_ide/presentation/pages/works/works_page.dart';
 import 'package:novel_ide/presentation/pages/outline/outline_page.dart';
 import 'package:novel_ide/presentation/pages/materials/materials_page.dart';
 import 'package:novel_ide/presentation/pages/profile/profile_page.dart';
+import 'package:novel_ide/presentation/pages/ai/ai_chat_page.dart';
 
 class MainShell extends ConsumerWidget {
   const MainShell({super.key});
@@ -14,7 +15,6 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(bottomNavIndexProvider);
-    final isDark = ref.watch(darkModeProvider);
 
     final pages = [
       const WritingPage(),
@@ -22,6 +22,7 @@ class MainShell extends ConsumerWidget {
       const OutlinePage(),
       const MaterialsPage(),
       const ProfilePage(),
+      const AiChatPage(),
     ];
 
     return Scaffold(
@@ -38,27 +39,32 @@ class MainShell extends ConsumerWidget {
           NavigationDestination(
             icon: Icon(Icons.edit_note_outlined),
             selectedIcon: Icon(Icons.edit_note),
-            label: AppStrings.writing,
+            label: '写作',
           ),
           NavigationDestination(
             icon: Icon(Icons.auto_stories_outlined),
             selectedIcon: Icon(Icons.auto_stories),
-            label: AppStrings.works,
+            label: '作品',
           ),
           NavigationDestination(
             icon: Icon(Icons.account_tree_outlined),
             selectedIcon: Icon(Icons.account_tree),
-            label: AppStrings.outline,
+            label: '大纲',
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
-            label: AppStrings.materials,
+            label: '资料',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
-            label: AppStrings.profile,
+            label: '我的',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'AI对话',
           ),
         ],
       ),

@@ -8,7 +8,6 @@ import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/services/config_service.dart';
 import 'package:novel_ide/presentation/pages/stats/stats_page.dart';
-import 'package:novel_ide/presentation/pages/ai/ai_chat_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -113,20 +112,6 @@ class ProfilePage extends ConsumerWidget {
             },
           ),
           const Divider(),
-
-          // AI Chat entry
-          ListTile(
-            leading: const Icon(Icons.chat, color: AppColors.primary),
-            title: const Text('AI 对话'),
-            subtitle: Text(currentPreset != null ? '风格: ${currentPreset.name}' : '自由聊天，切换模型'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AiChatPage()),
-              );
-            },
-          ),
 
           _SectionHeader(title: '外观'),
           ListTile(
