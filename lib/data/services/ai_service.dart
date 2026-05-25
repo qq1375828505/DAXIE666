@@ -12,19 +12,11 @@ class AiService {
   Future<String> chat(AiConfig config, List<Map<String, String>> messages, {String taskType = 'chat'}) async {
     final response = await _dio.post(
       config.apiUrl,
-      options: Options(headers: {
-        'Authorization': 'Bearer ${config.apiKey ?? ''}',
-        'Content-Type': 'application/json',
-      }),
-      data: {
-        'model': config.modelName,
-        'messages': messages,
-        'temperature': config.temperature,
-        'max_tokens': config.maxTokens,
-      },
+      options: Options(headers: _buildHeaders(config)),
+      data: _buildPayload(config, messages),
     );
 
-    final content = response.data['choices']?[0]?['message']?['content'] ?? '生成失败，请检查API配置';
+    final content = _parseResponse(config, response);
 
     // Track usage
     final usage = response.data['usage'];
@@ -37,6 +29,53 @@ class AiService {
     );
 
     return content;
+  }
+
+  Map<String, String> _buildHeaders(AiConfig config) {
+    if (config.protocol == ApiProtocol.anthropic) {
+      return {
+        'x-api-key': config.apiKey ?? '',
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      };
+    }
+    return {
+      'Authorization': 'Bearer ${config.apiKey ?? ''}',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  Map<String, dynamic> _buildPayload(AiConfig config, List<Map<String, String>> messages) {
+    if (config.protocol == ApiProtocol.anthropic) {
+      final systemMsg = messages.firstWhere(
+        (m) => m['role'] == 'system',
+        orElse: () => {'role': 'user', 'content': ''},
+      );
+      final userMessages = messages.where((m) => m['role'] != 'system').toList();
+      return {
+        'model': config.modelName,
+        'max_tokens': config.maxTokens,
+        'system': systemMsg['content'],
+        'messages': userMessages,
+      };
+    }
+    return {
+      'model': config.modelName,
+      'messages': messages,
+      'temperature': config.temperature,
+      'max_tokens': config.maxTokens,
+    };
+  }
+
+  String _parseResponse(AiConfig config, dynamic response) {
+    if (config.protocol == ApiProtocol.anthropic) {
+      final content = response.data['content'];
+      if (content is List && content.isNotEmpty) {
+        return content[0]['text'] ?? '生成失败';
+      }
+      return '生成失败，请检查API配置';
+    }
+    return response.data['choices']?[0]?['message']?['content'] ?? '生成失败，请检查API配置';
   }
 
   /// Convenience: send with system prompt + user message.
