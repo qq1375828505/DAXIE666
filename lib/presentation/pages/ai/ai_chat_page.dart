@@ -4,6 +4,7 @@ import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
+import 'package:novel_ide/data/services/novel_memory.dart';
 
 /// Dedicated AI chat page with model switching.
 class AiChatPage extends ConsumerStatefulWidget {
@@ -42,10 +43,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       final preset = ref.read(currentPresetProvider);
       final systemPrompt = preset?.systemPrompt ?? '你是一位专业的网文写作助手，擅长帮助作者构思剧情、润色文字、生成大纲和角色设定。请用中文回复。';
 
+      // Load novel memory for context
+      String memoryContext = '';
+      try {
+        final novel = ref.read(selectedNovelProvider);
+        if (novel != null) {
+          memoryContext = await NovelMemory.getForAiContext(novel.id, novel.title);
+        }
+      } catch (_) {}
+
       final aiService = ref.read(aiServiceProvider);
       final aiText = await aiService.send(
         config: config,
-        systemPrompt: systemPrompt,
+        systemPrompt: '$systemPrompt\n\n小说记忆文件（当前状态）：\n$memoryContext',
         userMessage: text,
         taskType: 'chat',
       );

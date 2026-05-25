@@ -8,6 +8,7 @@ import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/data/models/tomato_preset_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/notification_service.dart';
+import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/presentation/pages/ai/ai_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/search_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/setting_reminder_page.dart';
@@ -130,6 +131,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     ref.read(saveStatusProvider.notifier).state = '已保存 ${DateFormat('HH:mm').format(DateTime.now())}';
     _lastSavedWordCount = newWordCount;
     ref.invalidate(chaptersProvider(widget.novelId));
+
+    // Auto-update novel memory file
+    NovelMemory.invalidateCache();
+    NovelMemory(novelId: widget.novelId, novelTitle: novel.title).autoUpdate();
   }
 
   void _createSnapshot() {

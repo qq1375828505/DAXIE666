@@ -11,7 +11,7 @@ import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
-import 'package:novel_ide/data/services/novel_memory_generator.dart';
+import 'package:novel_ide/data/services/novel_memory.dart';
 
 /// Export page - supports selective or full export as TXT.
 class ExportPage extends StatefulWidget {
@@ -105,8 +105,9 @@ class _ExportPageState extends State<ExportPage> {
         await infoFile.writeAsString(buffer.toString());
       }
 
-      // 1.5. Novel Memory (always included - this is the key memory file)
-      final memoryContent = await NovelMemoryGenerator.generate(widget.novelId, widget.novelTitle);
+      // 1.5. Novel Memory (always included)
+      final memory = NovelMemory(novelId: widget.novelId, novelTitle: widget.novelTitle);
+      final memoryContent = await memory.autoUpdate();
       await File(p.join(exportDir.path, '小说记忆文件.txt')).writeAsString(memoryContent);
 
       // 2. Chapters

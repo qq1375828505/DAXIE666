@@ -8,6 +8,7 @@ import 'package:novel_ide/presentation/pages/tomato/shuangdian_report_page.dart'
 import 'package:novel_ide/presentation/pages/tomato/water_report_page.dart';
 import 'package:novel_ide/presentation/pages/tomato/title_generator_result_page.dart';
 import 'package:novel_ide/presentation/pages/ai/full_text_review_page.dart';
+import 'package:novel_ide/data/services/novel_memory.dart';
 
 class AiDrawer extends ConsumerStatefulWidget {
   final String novelId;
@@ -60,9 +61,19 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
           : widget.controller.text;
 
       final aiService = ref.read(aiServiceProvider);
+
+      // Load novel memory for full context
+      String memoryContext = '';
+      try {
+        final novel = ref.read(selectedNovelProvider);
+        if (novel != null) {
+          memoryContext = await NovelMemory.getForAiContext(novel.id, novel.title);
+        }
+      } catch (_) {}
+
       final aiText = await aiService.send(
         config: config,
-        systemPrompt: systemPrompt,
+        systemPrompt: '$systemPrompt\n\n小说记忆文件（当前状态）：\n$memoryContext',
         userMessage: '当前章节内容：\n$context\n\n用户请求：$text',
         taskType: 'chat',
       );
