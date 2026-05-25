@@ -106,6 +106,14 @@ class NovelDetailPage extends ConsumerWidget {
       ),
     );
   }
+
+  void _showImportDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => NovelImportDialog(novelId: novel.id, novelTitle: novel.title),
+    );
+  }
 }
 
 void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume, Novel novel) {
@@ -130,14 +138,6 @@ void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume,
       ],
     ),
   );
-
-  void _showImportDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => NovelImportDialog(novelId: novel.id, novelTitle: novel.title),
-    );
-  }
 }
 
 class _ChapterTreeView extends ConsumerWidget {
