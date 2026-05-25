@@ -1,64 +1,69 @@
-# 网文写作IDE - Android V1.3.2
+# 网文写作IDE - Android
 
-完全单机运行的网文写作IDE Android版。支持AI写作辅助、番茄风格预设、小说记忆系统。
-
-## 下载安装
+> 🚀 完全单机运行的网文写作IDE Android版。AI写作辅助 · 番茄风格预设 · 小说记忆系统 · 多模型支持
 
 [![GitHub Release](https://img.shields.io/github/v/release/qq1375828505/DAXIE666)](https://github.com/qq1375828505/DAXIE666/releases)
+[![Flutter](https://img.shields.io/badge/Flutter-3.29+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-最新版：**V1.3.2** — [直接下载APK](https://github.com/qq1375828505/DAXIE666/releases/download/v1.3.2/novel-ide-android-v1.3.2.apk)
+## 📥 下载安装
 
-## 功能特性
+最新版：**V1.3.3** — [直接下载 APK](https://github.com/qq1375828505/DAXIE666/releases/download/v1.3.3/novel-ide-android-v1.3.3.apk)
 
-### 核心功能
-- [x] 作品管理（新建、删除、重命名、长按菜单）
-- [x] 卷章管理（卷→章树形结构、长按重命名/删除、拖拽排序）
-- [x] 单章编辑器（TextField方案、只编辑当前章节、Undo/Redo）
-- [x] 自动保存（1.5秒延迟保存）+ 手动保存按钮
-- [x] 防丢稿机制（3分钟快照、保留20个历史版本）
-- [x] 字数统计与性能警告（>10000字提示拆章）
-- [x] 查找替换功能
-- [x] 深色模式 + 字体设置
+> 支持 Android 6.0+（minSdk 23），无需注册，安装即用。
 
-### AI 功能
-- [x] AI 对话窗口（底部导航Tab、会话管理、自动上下文压缩）
-- [x] AI 续写/润色/起标题（编辑器底部抽屉）
-- [x] 爽点检查/水文检测/全文审查（报告页面）
-- [x] 多模型支持（OpenAI兼容 + Anthropic 协议）
-- [x] 测试连接 + 获取模型列表
-- [x] 25个番茄预设（都市/玄幻/穿越/悬疑/女频）
-- [x] 自定义Agent创建 + 从文件导入
+## ✨ 功能特色
 
-### 资料管理（8种类型）
-- [x] 角色卡、设定卡、地点、势力、道具、伏笔、参考资料
-- [x] **小说记忆文件**（自动更新，AI自动读取上下文）
+### 📝 写作核心
+- **智能编辑器** — TextField 高性能方案，支持 Undo/Redo、查找替换、语音输入
+- **自动保存** — 1.5秒延迟保存 + dispose 强制保存，绝不丢稿
+- **防丢稿机制** — 3分钟自动快照，保留20个历史版本，一键恢复
+- **字数统计** — 实时字数、每日统计图表、连续打卡、达标通知
+- **性能保护** — 单章超过10000/15000字自动提醒拆章
 
-### 数据管理
-- [x] **全页面导出按钮**（写作/作品/大纲/资料页 AppBar）
-- [x] 勾选式导出（章节自由选择、TXT格式ZIP压缩）
-- [x] 导入 .novelpack 作品包
-- [x] 每日字数统计图表（fl_chart）
-- [x] 连续打卡 + 达标通知
-- [x] 软件配置文件（JSON自定义行为）
+### 🤖 AI 写作助手
+- **AI 对话窗口** — 底部导航独立Tab，多会话管理，自动上下文压缩（40条消息触发）
+- **AI 续写/润色/起标题** — 编辑器底部抽屉，选中文字右键即可调用
+- **爽点检查/水文检测/全文审查** — 一键生成专业审查报告
+- **多模型支持** — OpenAI 兼容协议 + Anthropic 协议，支持添加和切换多个 AI 模型
+- **测试连接** — 配置后一键测试 API 连通性和模型可用性
+- **25个番茄预设** — 都市/玄幻/穿越/悬疑/女频，覆盖2026年爆款风格
+- **自定义 Agent** — 创建专属写作 Agent，支持从文件导入
 
-### 权限与兼容性
-- [x] **运行时权限请求**（启动时弹出授权弹窗）
-- [x] 19项Android权限完整声明
-- [x] Android 6.0+ 兼容（minSdk 23）
-- [x] 纯单机运行，不依赖后端服务
+### 📚 资料管理（8种类型）
+- 角色卡、设定卡、地点、势力、道具、伏笔、参考资料
+- **小说记忆文件** — 自动更新，AI 对话时自动注入上下文
 
-### 技术栈
-- Flutter 3.29+ / Dart
-- Riverpod 状态管理
-- sqflite 本地数据库（7张表）
-- Hive 配置存储
-- flutter_secure_storage API Key加密
-- permission_handler 运行时权限
-- Dio HTTP请求（多协议支持）
-- fl_chart 统计图表
-- archive 压缩包
+### 📦 导入导出
+- **保存到本地** — 导出 ZIP 直接保存到手机，不依赖分享面板
+- **分享功能** — 通过 QQ/微信 等快速分享作品
+- **勾选式导出** — 章节自由选择，10种内容类型可勾选（章节、角色、设定、伏笔等）
+- **导入 .novelpack** — 一键导入完整作品包
 
-## 项目结构
+### 🔒 隐私与安全
+- **完全单机运行** — 不依赖后端服务，数据全部本地存储
+- **API Key 加密** — 使用 Android Keystore 安全存储
+- **三级隐私模式** — 脱敏处理，保护创作隐私
+- **19项权限声明** — 运行时授权，透明可控
+
+## 🏗️ 技术栈
+
+| 技术 | 用途 |
+|------|------|
+| Flutter 3.29+ / Dart | 跨平台 UI 框架 |
+| Riverpod | 状态管理 |
+| sqflite | 本地数据库（7张表） |
+| Hive | 配置存储 |
+| flutter_secure_storage | API Key 加密 |
+| Dio | HTTP 请求（多协议支持） |
+| fl_chart | 统计图表 |
+| archive | ZIP 压缩包 |
+| share_plus | 系统分享 |
+| file_picker | 文件选择 |
+| speech_to_text | 语音输入 |
+| permission_handler | 运行时权限 |
+
+## 📂 项目结构
 ```
 lib/
 ├── main.dart
@@ -82,38 +87,41 @@ lib/
 └── docs/                      # 技术文档
 ```
 
-## 运行方式
+## 🛠️ 开发运行
 
 ```bash
-# 1. 安装 Flutter SDK (>=3.29.0)
-# 2. 安装依赖
+# 1. 克隆项目
+git clone https://github.com/qq1375828505/DAXIE666.git
+
+# 2. 安装 Flutter SDK (>=3.29.0)
+# 3. 安装依赖
 flutter pub get
 
-# 3. 生成 Freezed 代码（首次运行）
+# 4. 生成代码（首次运行）
 flutter pub run build_runner build --delete-conflicting-outputs
 
-# 4. 运行
+# 5. 运行
 flutter run
 
-# 5. 打包 APK
+# 6. 打包 APK
 flutter build apk --release
 ```
 
-## 注意事项
+## 📋 注意事项
 - 首次运行需要执行 `build_runner` 生成 `.freezed.dart` 和 `.g.dart`
 - Android 需要 `minSdk 23`、`compileSdk 36`
 - 启动时会弹出权限请求弹窗（存储、通知、麦克风）
-- AI功能需要网络连接（配置API Key后使用）
+- AI 功能需要网络连接（配置 API Key 后使用）
 - 纯单机运行，不依赖后端服务
 
-## 数据存储
+## 💾 数据存储
 - 作品正文：`NovelProjects/{novelId}_{title}/chapters/*.md`
 - 索引数据库：`novel_ide.db`（7张表）
 - 配置：`Hive` + `app_config.json`
 - API Key：`Android Keystore`（flutter_secure_storage）
 - 记忆文件：`NovelProjects/memories/{novelId}_memory.txt`
 
-## 版本历史
+## 📜 版本历史
 | 版本 | 说明 |
 |------|------|
 | V1.0.0 | 基础框架、作品管理、编辑器、AI基础动作 |
@@ -122,7 +130,8 @@ flutter build apk --release
 | V1.3.0 | AI对话窗口、导出重写、小说记忆系统 |
 | V1.3.1 | 多协议支持、测试连接、配置文件、上下文压缩 |
 | V1.3.2 | 运行时权限、卷长按菜单、全页面导出、19项权限 |
+| V1.3.3 | 修复内容丢失Bug、导出保存到本地、dispose强制保存、路径一致性修复 |
 
-## License
+## 📄 License
 
 MIT

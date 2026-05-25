@@ -2091,3 +2091,52 @@ AI 对话作为独立 Tab（写作/作品/大纲/资料/**AI对话**），不再
 - 资料页 AppBar 右上角
 - 点击统一进入勾选式导出页面
 
+---
+
+## 29. V1.3.3 Bug修复详情
+
+### 29.1 修复章节自动保存后内容丢失（P0 致命）
+
+**问题现象**：用户在编辑器中输入内容后，界面提示"已保存"，但返回章节列表再次进入同一章节时，编辑器显示为空。
+
+**根因分析**：
+
+`ChapterRepository.getChapter()` 读取章节时，调用 `getProjectDir(novelId, '')` 传了空字符串作为 title，而 `updateChapter()` 写入时传了实际的 `novel.title`。路径格式为 `NovelProjects/{novelId}_{title}/chapters/{chapterId}.md`，导致读写路径不一致：
+
+- 写入路径：`NovelProjects/{novelId}_{美食}/chapters/{id}.md`
+- 读取路径：`NovelProjects/{novelId}_/chapters/{id}.md` ← 文件不存在，返回空字符串
+
+**修复方案**：
+
+1. `getChapter()` 从 novels 表自动查询 title，确保路径与写入一致
+2. `updateChapter()` 的 `novelTitle` 参数改为可选（`[String?]`），为空时自动从数据库查询
+3. 新增 `_forceSaveOnDispose()` 方法，dispose 时直接写文件系统，不依赖 Riverpod（dispose 后 ref 可能失效）
+4. dispose 中先取消定时器再强制保存，避免快速返回时保存被跳过
+
+**影响文件**：
+- `lib/data/repositories/chapter_repository.dart`
+- `lib/presentation/pages/writing/editor_page.dart`
+
+### 29.2 修复导出功能只有分享没有保存到本地（P1）
+
+**问题现象**：用户点击导出按钮后，系统弹出分享面板（QQ/微信等），但没有"保存到本地/Downloads"选项。ZIP 文件仅保存在系统临时目录，随时可能被清理。
+
+**根因分析**：
+
+`_doExport()` 方法只有一条输出路径——`Share.shareXFiles()`。国产 ROM 的分享面板通常不提供"保存到文件"选项，且临时目录的文件系统不认为需要持久化。
+
+**修复方案**：
+
+1. 导出页面底部按钮改为双按钮设计：「保存到本地」（主按钮）+「分享」（次按钮）
+2. 保存到本地使用 `FilePicker.platform.saveFile()` 让用户选择保存位置
+3. 保留原有分享功能，通过 `shareOnly` 参数区分两种模式
+4. 更新按钮文案和提示文字，消除 UI 误导
+
+**影响文件**：
+- `lib/presentation/pages/works/export_page.dart`
+
+### 29.3 其他修复
+
+- 修复 `PopupMenuButton` 类型推断错误（`List<StatefulWidget>` → `List<PopupMenuEntry>`）
+- 修复 `novel_detail_page.dart` 重命名章节时传空字符串导致路径不一致的问题（现已自动从数据库查询）
+
