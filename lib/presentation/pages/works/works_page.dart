@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:novel_ide/presentation/pages/works/export_page.dart';
 
 class WorksPage extends ConsumerWidget {
   const WorksPage({super.key});
@@ -259,29 +260,10 @@ class _NovelCard extends ConsumerWidget {
               ),
               PopupMenuButton<String>(
                 onSelected: (value) async {
-                  final fs = LocalFileDataSource();
                   if (value == 'export_pack') {
-                    try {
-                      final path = await fs.getProjectDir(novel.id, novel.title);
-                      // Create zip to temp file first, then share
-                      final tempDir = await getTemporaryDirectory();
-                      final tempPath = '${tempDir.path}/${novel.title}.novelpack';
-                      await fs.exportNovelPack(path, tempPath);
-                      // Share the file
-                      final file = XFile(tempPath);
-                      await Share.shareXFiles([file], text: '${novel.title} 作品包');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('已导出作品包')),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('导出失败: $e')),
-                        );
-                      }
-                    }
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => ExportPage(novelId: novel.id, novelTitle: novel.title),
+                    ));
                   } else if (value == 'delete') {
                     final confirm = await showDialog<bool>(
                       context: context,
