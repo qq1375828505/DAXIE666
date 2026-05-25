@@ -6,6 +6,7 @@ import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/models/volume_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/presentation/pages/writing/editor_page.dart';
+import 'package:novel_ide/presentation/pages/works/novel_import_dialog.dart';
 
 class NovelDetailPage extends ConsumerWidget {
   final Novel novel;
@@ -21,7 +22,13 @@ class NovelDetailPage extends ConsumerWidget {
         title: Text(novel.title),
         actions: [
           IconButton(
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: '导入小说文件',
+            onPressed: () => _showImportDialog(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
+            tooltip: '添加卷',
             onPressed: () => _showAddVolumeDialog(context, ref),
           ),
         ],
@@ -123,6 +130,14 @@ void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume,
       ],
     ),
   );
+
+  void _showImportDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => NovelImportDialog(novelId: novel.id, novelTitle: novel.title),
+    );
+  }
 }
 
 class _ChapterTreeView extends ConsumerWidget {

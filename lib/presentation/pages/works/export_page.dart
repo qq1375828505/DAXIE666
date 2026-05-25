@@ -36,6 +36,10 @@ class _ExportPageState extends State<ExportPage> {
   bool _exportHooks = true;
   bool _exportReferences = true;
   bool _exportProjectInfo = true;
+  bool _exportMemory = true;
+
+  // Material select all
+  bool get _selectAllMaterials => _exportProjectInfo && _exportOutline && _exportCharacters && _exportSettings && _exportLocations && _exportFactions && _exportItems && _exportHooks && _exportReferences && _exportMemory;
 
   // Chapter selection
   List<Chapter> _allChapters = [];
@@ -79,6 +83,22 @@ class _ExportPageState extends State<ExportPage> {
     });
   }
 
+  void _toggleAllMaterials(bool? value) {
+    setState(() {
+      final v = value ?? true;
+      _exportProjectInfo = v;
+      _exportOutline = v;
+      _exportCharacters = v;
+      _exportSettings = v;
+      _exportLocations = v;
+      _exportFactions = v;
+      _exportItems = v;
+      _exportHooks = v;
+      _exportReferences = v;
+      _exportMemory = v;
+    });
+  }
+
   /// Export selected data as TXT in a zip, then save locally or share.
   Future<void> _doExport({bool shareOnly = false}) async {
     setState(() {});
@@ -105,10 +125,12 @@ class _ExportPageState extends State<ExportPage> {
         await infoFile.writeAsString(buffer.toString());
       }
 
-      // 1.5. Novel Memory (always included)
-      final memory = NovelMemory(novelId: widget.novelId, novelTitle: widget.novelTitle);
-      final memoryContent = await memory.autoUpdate();
-      await File(p.join(exportDir.path, '小说记忆文件.txt')).writeAsString(memoryContent);
+      // 1.5. Novel Memory (optional)
+      if (_exportMemory) {
+        final memory = NovelMemory(novelId: widget.novelId, novelTitle: widget.novelTitle);
+        final memoryContent = await memory.autoUpdate();
+        await File(p.join(exportDir.path, '小说记忆文件.txt')).writeAsString(memoryContent);
+      }
 
       // 2. Chapters
       if (_exportChapters && _selectedChapterIds.isNotEmpty) {
@@ -422,7 +444,28 @@ class _ExportPageState extends State<ExportPage> {
                 const Divider(),
 
                 // --- Section: Data files ---
-                _SectionHeader(title: '作品资料'),
+                _SectionHeader(
+                  title: '作品资料',
+                  trailing: Checkbox(
+                    value: _selectAllMaterials,
+                    onChanged: _toggleAllMaterials,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => _toggleAllMaterials(true),
+                        child: const Text('全选'),
+                      ),
+                      TextButton(
+                        onPressed: () => _toggleAllMaterials(false),
+                        child: const Text('全不选'),
+                      ),
+                    ],
+                  ),
+                ),
                 _ExportTile(
                   title: '作品信息',
                   subtitle: '书名、字数、章节数',
@@ -485,6 +528,13 @@ class _ExportPageState extends State<ExportPage> {
                   icon: Icons.bookmark,
                   value: _exportReferences,
                   onChanged: (v) => setState(() => _exportReferences = v ?? false),
+                ),
+                _ExportTile(
+                  title: '小说记忆文件',
+                  subtitle: 'AI上下文记忆，自动更新',
+                  icon: Icons.psychology,
+                  value: _exportMemory,
+                  onChanged: (v) => setState(() => _exportMemory = v ?? false),
                 ),
 
                 const SizedBox(height: 24),
