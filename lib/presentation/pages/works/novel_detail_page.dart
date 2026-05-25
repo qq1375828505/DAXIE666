@@ -99,30 +99,30 @@ class NovelDetailPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume) {
-    final ctrl = TextEditingController(text: volume.title);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重命名卷'),
-        content: TextField(controller: ctrl, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          FilledButton(
-            onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              final updated = volume.copyWith(title: ctrl.text.trim());
-              await ref.read(volumeRepoProvider).updateVolume(updated);
-              ref.invalidate(volumesProvider(novel.id));
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-  }
+void _showRenameVolumeDialog(BuildContext context, WidgetRef ref, Volume volume, Novel novel) {
+  final ctrl = TextEditingController(text: volume.title);
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('重命名卷'),
+      content: TextField(controller: ctrl, autofocus: true),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(
+          onPressed: () async {
+            if (ctrl.text.trim().isEmpty) return;
+            final updated = volume.copyWith(title: ctrl.text.trim());
+            await ref.read(volumeRepoProvider).updateVolume(updated);
+            ref.invalidate(volumesProvider(novel.id));
+            if (ctx.mounted) Navigator.pop(ctx);
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ChapterTreeView extends ConsumerWidget {
@@ -158,7 +158,7 @@ class _ChapterTreeView extends ConsumerWidget {
                             title: const Text('重命名卷'),
                             onTap: () {
                               Navigator.pop(ctx);
-                              _showRenameVolumeDialog(context, ref, volume);
+                              _showRenameVolumeDialog(context, ref, volume, novel);
                             },
                           ),
                           ListTile(
