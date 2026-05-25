@@ -99,16 +99,21 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
       return;
     }
     widget.onClose();
-    final aiService = ref.read(aiServiceProvider);
-    final response = await aiService.send(
-      config: config,
-      systemPrompt: '你是番茄小说爽点密度检查器。分析规则：\n1. 爽点分类：身份揭露、打脸、实力碾压、财富展示、情感反转、系统奖励\n2. 密度标准：每3000字至少2-3个爽点\n3. 评分标准：0-10分\n4. 输出格式：评分数+爽点列表(位置/类型/强度)+优化建议',
-      userMessage: '请分析以下章节的爽点密度：\n\n$content',
-    );
-    if (mounted) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => ShuangdianReportPage(chapterContent: content, aiResponse: response),
-      ));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在分析爽点...'), duration: Duration(seconds: 3)));
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final response = await aiService.send(
+        config: config,
+        systemPrompt: '你是番茄小说爽点密度检查器。分析规则：\n1. 爽点分类：身份揭露、打脸、实力碾压、财富展示、情感反转、系统奖励\n2. 密度标准：每3000字至少2-3个爽点\n3. 评分标准：0-10分\n4. 输出格式：评分数+爽点列表(位置/类型/强度)+优化建议',
+        userMessage: '请分析以下章节的爽点密度：\n\n$content',
+      );
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ShuangdianReportPage(chapterContent: content, aiResponse: response),
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分析失败: $e')));
     }
   }
 
@@ -124,16 +129,21 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
       return;
     }
     widget.onClose();
-    final aiService = ref.read(aiServiceProvider);
-    final response = await aiService.send(
-      config: config,
-      systemPrompt: '你是番茄小说水文检测器。检测规则：\n1. 水文分类：废话对话、冗余环境描写、无推进日常、重复说明\n2. 水文率：<15%优秀，15-25%及格，>25%需精简\n3. 输出格式：水文率+水文段落列表+优化方案',
-      userMessage: '请检测以下章节的水文：\n\n$content',
-    );
-    if (mounted) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => WaterReportPage(chapterContent: content, aiResponse: response),
-      ));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在检测水文...'), duration: Duration(seconds: 3)));
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final response = await aiService.send(
+        config: config,
+        systemPrompt: '你是番茄小说水文检测器。检测规则：\n1. 水文分类：废话对话、冗余环境描写、无推进日常、重复说明\n2. 水文率：<15%优秀，15-25%及格，>25%需精简\n3. 输出格式：水文率+水文段落列表+优化方案',
+        userMessage: '请检测以下章节的水文：\n\n$content',
+      );
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => WaterReportPage(chapterContent: content, aiResponse: response),
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('检测失败: $e')));
     }
   }
 
@@ -145,16 +155,21 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
     }
     final content = widget.controller.text;
     widget.onClose();
-    final aiService = ref.read(aiServiceProvider);
-    final response = await aiService.send(
-      config: config,
-      systemPrompt: '你是番茄小说爆款标题生成器。标题要求：\n1. 长度：8-15字\n2. 风格：悬念式、爽点式、反转式\n3. 生成5个标题，按吸引力排序',
-      userMessage: content.isEmpty ? '请生成5个爆款标题' : '请根据以下章节内容生成5个爆款标题：\n\n$content',
-    );
-    if (mounted) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => TitleGeneratorResultPage(aiResponse: response),
-      ));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在生成标题...'), duration: Duration(seconds: 3)));
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final response = await aiService.send(
+        config: config,
+        systemPrompt: '你是番茄小说爆款标题生成器。标题要求：\n1. 长度：8-15字\n2. 风格：悬念式、爽点式、反转式\n3. 生成5个标题，按吸引力排序',
+        userMessage: content.isEmpty ? '请生成5个爆款标题' : '请根据以下章节内容生成5个爆款标题：\n\n$content',
+      );
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => TitleGeneratorResultPage(aiResponse: response),
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('生成失败: $e')));
     }
   }
 

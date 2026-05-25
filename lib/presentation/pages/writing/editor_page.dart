@@ -36,6 +36,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   bool _showSearchDrawer = false;
   bool _showFindBar = false;
   int _lastSavedWordCount = 0; // Guard against double-counting word stats
+  final List<String> _undoStack = [];
+  final List<String> _redoStack = [];
   final TextEditingController _findCtrl = TextEditingController();
   int _findIndex = 0;
   List<TextSelection> _findResults = [];
@@ -46,6 +48,31 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     _controller = TextEditingController();
     _loadChapter();
     _initSpeech();
+  }
+
+  // --- Undo/Redo ---
+  void _recordHistory() {
+    final text = _controller.text;
+    if (_undoStack.isEmpty || _undoStack.last != text) {
+      _undoStack.add(text);
+      if (_undoStack.length > 50) _undoStack.removeAt(0);
+      _redoStack.clear();
+    }
+  }
+
+  void _undo() {
+    if (_undoStack.length <= 1) return;
+    _redoStack.add(_undoStack.removeLast());
+    _controller.text = _undoStack.last;
+    _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) return;
+    final text = _redoStack.removeLast();
+    _undoStack.add(text);
+    _controller.text = text;
+    _controller.selection = TextSelection.collapsed(offset: text.length);
   }
 
   Future<void> _initSpeech() async {
@@ -74,6 +101,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   Future<void> _saveChapter() async {
+    _recordHistory();
     final novel = ref.read(selectedNovelProvider);
     if (novel == null) return;
     final chapter = await ref.read(chapterRepoProvider).getChapter(widget.chapterId);
@@ -548,8 +576,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
-                    IconButton(icon: const Icon(Icons.undo, size: 22), onPressed: () {}),
-                    IconButton(icon: const Icon(Icons.redo, size: 22), onPressed: () {}),
+                    IconButton(icon: const Icon(Icons.undo, size: 22), onPressed: _undo),
+                    IconButton(icon: const Icon(Icons.redo, size: 22), onPressed: _redo),
                     const VerticalDivider(width: 1),
                     IconButton(
                       icon: Icon(_isListening ? Icons.mic : Icons.mic_none, size: 22),

@@ -384,6 +384,12 @@ class _MainOutlineSectionState extends ConsumerState<_MainOutlineSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch for novel updates to keep outline in sync
+    final currentNovel = ref.watch(selectedNovelProvider) ?? widget.novel;
+    // Sync controller if novel description changed externally
+    if (!_isEditing && _ctrl.text != (currentNovel.description ?? '')) {
+      _ctrl.text = currentNovel.description ?? '';
+    }
     return Container(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -399,7 +405,7 @@ class _MainOutlineSectionState extends ConsumerState<_MainOutlineSection> {
                 icon: Icon(_isEditing ? Icons.check : Icons.edit, size: 18),
                 onPressed: () async {
                   if (_isEditing) {
-                    final updated = widget.novel.copyWith(description: _ctrl.text.trim());
+                    final updated = currentNovel.copyWith(description: _ctrl.text.trim());
                     await NovelRepository().updateNovel(updated);
                     ref.invalidate(novelsProvider);
                     ref.read(selectedNovelProvider.notifier).state = updated;

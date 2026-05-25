@@ -14,8 +14,8 @@ class NotificationService {
     _initialized = true;
   }
 
-  /// Schedule daily word goal reminder at 21:00.
-  static Future<void> scheduleWordGoalReminder() async {
+  /// Show word goal reminder (called when app is in foreground).
+  static Future<void> showWordGoalReminder() async {
     await init();
     final goal = ConfigService.wordGoal;
     await _plugin.show(
@@ -55,7 +55,7 @@ class NotificationService {
     );
   }
 
-  /// Show a one-time notification (e.g., when daily goal is reached).
+  /// Show a one-time notification when daily goal is reached.
   static Future<void> showGoalReached(int wordsWritten, int goal) async {
     await init();
     if (wordsWritten < goal) return;
