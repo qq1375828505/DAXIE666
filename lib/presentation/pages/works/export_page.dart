@@ -40,6 +40,10 @@ class _ExportPageState extends State<ExportPage> {
   bool _exportProjectInfo = true;
   bool _exportMemory = true;
 
+  // Section collapse state
+  bool _chaptersExpanded = true;
+  bool _materialsExpanded = true;
+
   // Material select all
   bool get _selectAllMaterials => _exportProjectInfo && _exportOutline && _exportCharacters && _exportSettings && _exportLocations && _exportFactions && _exportItems && _exportHooks && _exportReferences && _exportMemory;
 
@@ -140,7 +144,6 @@ class _ExportPageState extends State<ExportPage> {
         await chaptersDir.create();
         for (final chapter in _allChapters) {
           if (!_selectedChapterIds.contains(chapter.id)) continue;
-          // Read content from source file
           final contentFile = File(p.join(projectPath, 'chapters', '${chapter.id}.md'));
           String content = '';
           if (await contentFile.exists()) {
@@ -160,7 +163,6 @@ class _ExportPageState extends State<ExportPage> {
 
       // 3. Outline / Volumes
       if (_exportOutline) {
-        // Read volume info from project source
         final volFile = File(p.join(projectPath, 'volumes.json'));
         if (await volFile.exists()) {
           final volData = await volFile.readAsString();
@@ -174,7 +176,6 @@ class _ExportPageState extends State<ExportPage> {
           }
           await outFile.writeAsString(buffer.toString());
         }
-        // Main outline (from novel description)
         final projFile = File(p.join(projectPath, 'project.json'));
         if (await projFile.exists()) {
           final projData = jsonDecode(await projFile.readAsString());
@@ -318,12 +319,9 @@ class _ExportPageState extends State<ExportPage> {
       await File(zipPath).writeAsBytes(zipBytes);
 
       if (shareOnly) {
-        // 分享模式：直接调用系统分享面板
         final file = XFile(zipPath);
         await Share.shareXFiles([file], text: '${widget.novelTitle} 作品导出');
       } else {
-        // 保存到本地模式：让用户选择保存位置
-        // Android/iOS 需要 bytes 参数
         final outputPath = await FilePicker.platform.saveFile(
           dialogTitle: '选择保存位置',
           fileName: '${widget.novelTitle}_导出.zip',
@@ -362,7 +360,7 @@ class _ExportPageState extends State<ExportPage> {
     }
   }
 
-  /// EPUB 格式导出
+  /// EPUB 导出
   Future<void> _doEpubExport() async {
     setState(() {});
     try {
@@ -374,7 +372,6 @@ class _ExportPageState extends State<ExportPage> {
         selectedChapterIds: selectedIds,
       );
 
-      // 保存到本地
       final epubBytes = await File(epubPath).readAsBytes();
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: '保存 EPUB 文件',
@@ -415,18 +412,20 @@ class _ExportPageState extends State<ExportPage> {
       body: _isLoadingChapters
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
                 // --- Section: Chapters ---
                 _SectionHeader(
-                  title: '章节正文 (${_allChapters.length}章)',
+                  title: '章节正文',
+                  count: '${_allChapters.length}章',
+                  isExpanded: _chaptersExpanded,
                   trailing: Checkbox(
                     value: _selectAllChapters,
                     onChanged: _toggleAllChapters,
                   ),
+                  onToggle: () => setState(() => _chaptersExpanded = !_chaptersExpanded),
                 ),
-                if (_exportChapters) ...[
-                  // Select all / deselect all for chapters
+                if (_chaptersExpanded) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -449,7 +448,6 @@ class _ExportPageState extends State<ExportPage> {
                       ],
                     ),
                   ),
-                  // Chapter list (show first 50, rest behind "show more")
                   ...List.generate(
                     _allChapters.length > 50 ? 50 : _allChapters.length,
                     (i) {
@@ -482,101 +480,105 @@ class _ExportPageState extends State<ExportPage> {
                       ),
                     ),
                 ],
-                const Divider(),
+                const Divider(height: 24),
 
                 // --- Section: Data files ---
                 _SectionHeader(
                   title: '作品资料',
+                  isExpanded: _materialsExpanded,
                   trailing: Checkbox(
                     value: _selectAllMaterials,
                     onChanged: _toggleAllMaterials,
                   ),
+                  onToggle: () => setState(() => _materialsExpanded = !_materialsExpanded),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => _toggleAllMaterials(true),
-                        child: const Text('全选'),
-                      ),
-                      TextButton(
-                        onPressed: () => _toggleAllMaterials(false),
-                        child: const Text('全不选'),
-                      ),
-                    ],
+                if (_materialsExpanded) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => _toggleAllMaterials(true),
+                          child: const Text('全选'),
+                        ),
+                        TextButton(
+                          onPressed: () => _toggleAllMaterials(false),
+                          child: const Text('全不选'),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                _ExportTile(
-                  title: '作品信息',
-                  subtitle: '书名、字数、章节数',
-                  icon: Icons.info_outline,
-                  value: _exportProjectInfo,
-                  onChanged: (v) => setState(() => _exportProjectInfo = v ?? false),
-                ),
-                _ExportTile(
-                  title: '卷信息 + 主线大纲',
-                  subtitle: '分卷结构、主线剧情',
-                  icon: Icons.account_tree,
-                  value: _exportOutline,
-                  onChanged: (v) => setState(() => _exportOutline = v ?? false),
-                ),
-                _ExportTile(
-                  title: '角色卡',
-                  subtitle: '主角、配角、反派设定',
-                  icon: Icons.person,
-                  value: _exportCharacters,
-                  onChanged: (v) => setState(() => _exportCharacters = v ?? false),
-                ),
-                _ExportTile(
-                  title: '设定卡',
-                  subtitle: '世界观、战力体系',
-                  icon: Icons.settings,
-                  value: _exportSettings,
-                  onChanged: (v) => setState(() => _exportSettings = v ?? false),
-                ),
-                _ExportTile(
-                  title: '地点',
-                  subtitle: '城市、宗门、秘境',
-                  icon: Icons.location_on,
-                  value: _exportLocations,
-                  onChanged: (v) => setState(() => _exportLocations = v ?? false),
-                ),
-                _ExportTile(
-                  title: '势力',
-                  subtitle: '门派、国家、组织',
-                  icon: Icons.account_balance,
-                  value: _exportFactions,
-                  onChanged: (v) => setState(() => _exportFactions = v ?? false),
-                ),
-                _ExportTile(
-                  title: '道具',
-                  subtitle: '武器、法宝、丹药',
-                  icon: Icons.inventory_2,
-                  value: _exportItems,
-                  onChanged: (v) => setState(() => _exportItems = v ?? false),
-                ),
-                _ExportTile(
-                  title: '伏笔追踪',
-                  subtitle: '伏笔状态和回收情况',
-                  icon: Icons.link,
-                  value: _exportHooks,
-                  onChanged: (v) => setState(() => _exportHooks = v ?? false),
-                ),
-                _ExportTile(
-                  title: '参考资料',
-                  subtitle: '搜索结果、灵感笔记',
-                  icon: Icons.bookmark,
-                  value: _exportReferences,
-                  onChanged: (v) => setState(() => _exportReferences = v ?? false),
-                ),
-                _ExportTile(
-                  title: '小说记忆文件',
-                  subtitle: 'AI上下文记忆，自动更新',
-                  icon: Icons.psychology,
-                  value: _exportMemory,
-                  onChanged: (v) => setState(() => _exportMemory = v ?? false),
-                ),
+                  _ExportTile(
+                    title: '作品信息',
+                    subtitle: '书名、字数、章节数',
+                    icon: Icons.info_outline,
+                    value: _exportProjectInfo,
+                    onChanged: (v) => setState(() => _exportProjectInfo = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '卷信息 + 主线大纲',
+                    subtitle: '分卷结构、主线剧情',
+                    icon: Icons.account_tree,
+                    value: _exportOutline,
+                    onChanged: (v) => setState(() => _exportOutline = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '角色卡',
+                    subtitle: '主角、配角、反派设定',
+                    icon: Icons.person,
+                    value: _exportCharacters,
+                    onChanged: (v) => setState(() => _exportCharacters = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '设定卡',
+                    subtitle: '世界观、战力体系',
+                    icon: Icons.settings,
+                    value: _exportSettings,
+                    onChanged: (v) => setState(() => _exportSettings = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '地点',
+                    subtitle: '城市、宗门、秘境',
+                    icon: Icons.location_on,
+                    value: _exportLocations,
+                    onChanged: (v) => setState(() => _exportLocations = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '势力',
+                    subtitle: '门派、国家、组织',
+                    icon: Icons.account_balance,
+                    value: _exportFactions,
+                    onChanged: (v) => setState(() => _exportFactions = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '道具',
+                    subtitle: '武器、法宝、丹药',
+                    icon: Icons.inventory_2,
+                    value: _exportItems,
+                    onChanged: (v) => setState(() => _exportItems = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '伏笔追踪',
+                    subtitle: '伏笔状态和回收情况',
+                    icon: Icons.link,
+                    value: _exportHooks,
+                    onChanged: (v) => setState(() => _exportHooks = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '参考资料',
+                    subtitle: '搜索结果、灵感笔记',
+                    icon: Icons.bookmark,
+                    value: _exportReferences,
+                    onChanged: (v) => setState(() => _exportReferences = v ?? false),
+                  ),
+                  _ExportTile(
+                    title: '小说记忆文件',
+                    subtitle: 'AI上下文记忆，自动更新',
+                    icon: Icons.psychology,
+                    value: _exportMemory,
+                    onChanged: (v) => setState(() => _exportMemory = v ?? false),
+                  ),
+                ],
 
                 const SizedBox(height: 24),
                 // Export buttons: Save + Share
@@ -584,11 +586,13 @@ class _ExportPageState extends State<ExportPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.save_alt),
-                        label: Text('保存到本地 (${_selectedChapterIds.length}章 + 资料)'),
+                        icon: const Icon(Icons.save_alt, size: 20),
+                        label: const Text('保存到本地'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: _isLoadingChapters ? null : () => _doExport(shareOnly: false),
                       ),
@@ -596,19 +600,20 @@ class _ExportPageState extends State<ExportPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.share),
+                        icon: const Icon(Icons.share, size: 20),
                         label: const Text('分享'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: _isLoadingChapters ? null : () => _doExport(shareOnly: true),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  '保存到本地：选择位置保存 ZIP 文件\n分享：通过 QQ/微信 等发送',
+                  '保存为 ZIP 文件 · 分享到 QQ/微信',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
@@ -628,12 +633,13 @@ class _ExportPageState extends State<ExportPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          icon: const Icon(Icons.menu_book),
+                          icon: const Icon(Icons.menu_book, size: 20),
                           label: Text('导出为 EPUB (${_selectedChapterIds.length}章)'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepOrange,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onPressed: _isLoadingChapters ? null : () => _doEpubExport(),
                         ),
@@ -650,19 +656,52 @@ class _ExportPageState extends State<ExportPage> {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final String? count;
   final Widget? trailing;
-  const _SectionHeader({required this.title, this.trailing});
+  final bool isExpanded;
+  final VoidCallback? onToggle;
+
+  const _SectionHeader({
+    required this.title,
+    this.count,
+    this.trailing,
+    this.isExpanded = true,
+    this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          if (trailing != null) trailing!,
-        ],
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          children: [
+            // 折叠箭头
+            if (onToggle != null)
+              AnimatedRotation(
+                turns: isExpanded ? 0.25 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const Icon(Icons.keyboard_arrow_right, size: 22),
+              ),
+            if (onToggle != null) const SizedBox(width: 4),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            if (count != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(count!, style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ),
+            ],
+            const Spacer(),
+            if (trailing != null) trailing!,
+          ],
+        ),
       ),
     );
   }

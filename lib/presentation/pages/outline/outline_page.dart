@@ -27,7 +27,7 @@ class OutlinePage extends ConsumerWidget {
               Text('先选择一部作品', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
+                onPressed: () => ref.read(bottomNavIndexProvider.notifier).state = 0,
                 child: const Text('去选择作品'),
               ),
             ],

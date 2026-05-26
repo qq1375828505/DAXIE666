@@ -73,9 +73,8 @@ class AppTheme {
 
 class AppStrings {
   static const appName = '网文写作IDE';
-  static const writing = '写作';
   static const works = '作品';
   static const outline = '大纲';
   static const materials = '资料';
-  static const profile = '我的';
+  static const aiChat = 'AI对话';
 }

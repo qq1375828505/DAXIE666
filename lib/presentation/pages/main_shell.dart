@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
-import 'package:novel_ide/presentation/pages/writing/writing_page.dart';
 import 'package:novel_ide/presentation/pages/works/works_page.dart';
 import 'package:novel_ide/presentation/pages/outline/outline_page.dart';
 import 'package:novel_ide/presentation/pages/materials/materials_page.dart';
@@ -16,7 +14,6 @@ class MainShell extends ConsumerWidget {
     final currentIndex = ref.watch(bottomNavIndexProvider);
 
     final pages = [
-      const WritingPage(),
       const WorksPage(),
       const OutlinePage(),
       const MaterialsPage(),
@@ -34,11 +31,6 @@ class MainShell extends ConsumerWidget {
           ref.read(bottomNavIndexProvider.notifier).state = index;
         },
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.edit_note_outlined),
-            selectedIcon: Icon(Icons.edit_note),
-            label: '写作',
-          ),
           NavigationDestination(
             icon: Icon(Icons.auto_stories_outlined),
             selectedIcon: Icon(Icons.auto_stories),
