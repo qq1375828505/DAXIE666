@@ -164,37 +164,39 @@ TextField(
 
 ## 5. 页面结构
 
-### 5.1 底部导航（5个Tab）
+### 5.1 底部导航（4个Tab）
 
 Android版是完整移动端小说写作IDE，底部导航以作品创作为中心。
 
 ```dart
-NavItem(icon: Icons.edit_note, label: '写作', page: WritingPage()),
-NavItem(icon: Icons.auto_stories, label: '作品', page: WorksPage()),
+NavItem(icon: Icons.auto_stories, label: '作品', page: WorksPage()),    // 首页
 NavItem(icon: Icons.account_tree, label: '大纲', page: OutlinePage()),
 NavItem(icon: Icons.inventory_2, label: '资料', page: MaterialsPage()),
 NavItem(icon: Icons.chat_bubble, label: 'AI对话', page: AiChatPage()),
 ```
 
-注：「我的」页面（AI配置、Agent市场、字数目标、统计、深色模式、字体、软件配置、备份）已移至**资料页右上角设置按钮**，不再占用底部导航。
+- 「作品」Tab 为 App 首页，显示作品列表，点击进入作品详情（卷章列表），再点击章节进入编辑器
+- 「我的」页面（AI配置、Agent市场、字数目标、统计、深色模式、字体、软件配置、备份）已移至**资料页右上角设置按钮**，不再占用底部导航
+- 原「写作」Tab 已移除，写作入口改为 作品首页 → 作品详情 → 章节 → 编辑器
 
-### 5.2 写作页（WritingPage）
+### 5.2 作品页（WorksPage）— App 首页
 
-- 当前章节编辑器
-- 顶部显示：作品名、当前章节、保存状态、当前章字数
-- AppBar右上角：导出按钮、保存按钮、查找、更多菜单
-- 底部工具栏：撤销、重做、保存
-- 长按选词：复制/剪切/润色/扩写/改对白/联网查证
-- AI作为底部抽屉或浮动按钮出现，不抢占正文区域
+- 底部导航「作品」Tab 为首页
+- 顶部渐变色统计栏：作品数 / 总字数 / 总章节
+- 作品卡片列表：封面缩略图 + 书名 + 简介 + 字数 + 章节数 + 更新时间
+- 空状态引导：一键创建或导入 TXT/MD 文件
+- AppBar 右侧：导入按钮 + 设置按钮（进入 ProfilePage）
+- 长按作品卡片：重命名 / 导出 / 删除
+- FAB：新建作品
 
-### 5.3 作品页（WorksPage）
+### 5.3 作品详情页（NovelDetailPage）
 
-- 我的作品列表
-- 最近编辑
-- 新建作品
-- 导入作品源文件/`.novelpack`
-- 导出作品源文件/`.novelpack`
-- 作品备份与恢复
+- 点击作品卡片进入
+- AppBar：全局搜索 + 导入章节 + 导出作品
+- 卷→章树形列表，卷头显示卷序号 + 章数 + 字数
+- 章节项：状态标签 + 字数 + 点击进入编辑器
+- 长按卷/章弹出操作菜单（重命名/删除）
+- 底部 FAB「继续写作」：自动打开最近编辑的章节
 
 ### 5.4 大纲页（OutlinePage）
 
@@ -1447,7 +1449,7 @@ android_novel_ide/lib/
 - TXT格式ZIP压缩包
 - 自动包含「小说记忆文件.txt」
 - 使用share_plus调用系统分享
-- **所有主页面AppBar都有导出按钮**（写作、作品、大纲、资料）
+- **所有主页面AppBar都有导出按钮**（作品详情页、大纲、资料）
 
 ---
 
@@ -1748,7 +1750,7 @@ lib/
 │       └── novel_memory.dart              # ⭐ 小说记忆系统
 ├── presentation/
 │   ├── pages/
-│   │   ├── main_shell.dart                # 5-Tab 底部导航
+│   │   ├── main_shell.dart                # 4-Tab 底部导航（作品/大纲/资料/AI对话）
 │   │   ├── ai/
 │   │   │   ├── ai_drawer.dart             # 写作页内AI抽屉（含记忆上下文）
 │   │   │   ├── ai_chat_page.dart          # ⭐ 独立AI对话页（含记忆上下文+模型切换）
@@ -1767,11 +1769,11 @@ lib/
 │   │   │   ├── water_report_page.dart      # ⭐ 水文报告
 │   │   │   └── title_generator_result_page.dart # ⭐ 标题生成结果
 │   │   ├── works/
-│   │   │   ├── works_page.dart             # 作品列表（含导出按钮）
-│   │   │   ├── novel_detail_page.dart      # 卷章管理（卷+章均支持长按菜单）
-│   │   │   └── export_page.dart            # ⭐ 勾选式导出系统
+│   │   │   ├── works_page.dart             # 作品列表首页（统计栏+卡片+空状态引导）
+│   │   │   ├── novel_detail_page.dart      # 作品详情（卷章列表+继续写作FAB+搜索/导出）
+│   │   │   └── export_page.dart            # ⭐ 勾选式导出系统（折叠收缩+保存/分享）
 │   │   └── writing/
-│   │       ├── writing_page.dart            # 写作引导页（含导出按钮）
+│   │       ├── writing_page.dart            # 写作引导页（已废弃，编辑器从作品详情页进入）
 │   │       └── editor_page.dart             # 编辑器（导出+自动保存+记忆更新+undo/redo）
 │   └── state/
 │       └── app_providers.dart              # 全部Riverpod providers + 数据加载函数
@@ -1786,6 +1788,7 @@ lib/
 | V1.0.0 | 2026-05 | 基础框架、作品管理、编辑器、AI基础动作、导入导出 |
 | V1.3.0 | 2026-05 | V1 Bug修复(10个) + V2全功能 + V3全功能 |
 | V1.3.1 | 2026-05 | AI对话窗口、导出系统重写、小说记忆系统、Agent导入 |
+| V1.5.0 | 2026-05 | UI重构：仿作家助手交互流程（4Tab底部导航 · 作品首页 · 详情页 · 继续写作FAB）· 导出页折叠收缩 · 卡片全面升级 |
 
 ### 已修复的已知问题
 - 材料数据重启丢失（角色/设定/伏笔/参考的增删未持久化）
@@ -1884,7 +1887,7 @@ lib/
 
 ### 22.1 底部导航Tab
 
-AI 对话作为独立 Tab（写作/作品/大纲/资料/**AI对话**），不再是子页面。原「我的」Tab 已移除，内容合并到资料页右上角设置按钮。
+AI 对话作为独立 Tab（作品/大纲/资料/**AI对话**），不再是子页面。原「我的」Tab 已移除，内容合并到资料页右上角设置按钮。V1.5.0 进一步精简为 4 Tab，移除了独立的「写作」Tab。
 
 ### 22.2 会话管理
 
@@ -1970,7 +1973,7 @@ AI 对话作为独立 Tab（写作/作品/大纲/资料/**AI对话**），不再
 - ✅ 章节自由选择（全选/逐章勾选）
 - ✅ 导出为 ZIP 压缩包（内部 TXT 格式）
 - ✅ 自动包含「小说记忆文件.txt」
-- ✅ 所有主页面AppBar都有导出按钮（写作/作品/大纲/资料）
+- ✅ 所有主页面AppBar都有导出按钮（作品详情页/大纲/资料）
 
 ---
 
@@ -2047,6 +2050,11 @@ AI 对话作为独立 Tab（写作/作品/大纲/资料/**AI对话**），不再
 | V1.3.0 | 2026-05 | AI对话窗口、导出重写、小说记忆系统、Agent导入 |
 | V1.3.1 | 2026-05 | 多协议支持、测试连接、获取模型、UI重构、配置文件、上下文压缩 |
 | V1.3.2 | 2026-05 | 运行时权限请求、卷长按重命名/删除、"我的"移至设置按钮、所有页面导出按钮、补全19项Android权限 |
+| V1.3.3 | 2026-05 | 修复章节内容丢失Bug、dispose强制保存 |
+| V1.3.4 | 2026-05 | TXT/MD/DOCX导入、AI智能分析填充资料库、导出全选/全不选 |
+| V1.3.5 | 2026-05 | 修复导出保存到本地失败、修复类作用域错误 |
+| V1.4.0 | 2026-05 | 8种主题皮肤、WebView富文本编辑器、跨章节全局搜索、文章校对引擎(60+词库)、EPUB电子书导出、编辑器9按钮快捷栏、快捷短语、DOCX导入自动创建作品 |
+| V1.5.0 | 2026-05 | UI重构：仿作家助手交互流程（4Tab底部导航 · 作品首页 · 作品详情页 · 继续写作FAB）· 导出页章节/资料折叠收缩 · 卡片样式全面升级 |
 
 ---
 
@@ -2083,14 +2091,13 @@ AI 对话作为独立 Tab（写作/作品/大纲/资料/**AI对话**），不再
 
 ### 28.3 底部导航重构
 
-- 从 6 Tab 减为 5 Tab（写作/作品/大纲/资料/AI对话）
+- 从 6 Tab 减为 5 Tab（写作/作品/大纲/资料/AI对话）→ V1.5.0 再减为 4 Tab（作品/大纲/资料/AI对话）
 - 「我的」页面内容移至资料页右上角齿轮设置按钮
 - 设置页面包含：AI模型配置、Agent市场、字数目标、写作统计、深色模式、字体设置、软件配置、备份恢复
 
 ### 28.4 全页面导出按钮
 
-- 写作页（引导页+编辑器）AppBar 右上角
-- 作品页 AppBar 右上角
+- 作品详情页 AppBar 右上角
 - 大纲页 AppBar 右上角
 - 资料页 AppBar 右上角
 - 点击统一进入勾选式导出页面
@@ -2393,4 +2400,93 @@ EPUB = ZIP 压缩包，包含：
 - 筛选栏（全部/错别字/标点/建议）
 - 结果卡片：红色左边框（错别字）/ 橙色（标点）/ 蓝色（建议）
 - 显示 原文→建议 + 上下文片段
+
+---
+
+## 37. V1.5.0 — UI重构：仿作家助手交互流程
+
+### 37.1 改动动机
+
+用户对比作家助手（起点）和 DAXIE666，发现：
+1. 底部5个Tab不合理 — 「写作」Tab 与「作品」Tab 功能重叠
+2. 交互流程不直观 — 应该是「作品列表 → 作品详情 → 章节列表 → 编辑器」
+3. UI不够精致 — 卡片样式、间距、空状态需要全面提升
+
+### 37.2 底部导航 5 Tab → 4 Tab
+
+```
+旧：写作 | 作品 | 大纲 | 资料 | AI对话  (5个Tab)
+新：作品 | 大纲 | 资料 | AI对话        (4个Tab)
+```
+
+**文件**：`lib/presentation/pages/main_shell.dart`
+
+- 移除 WritingPage 引用
+- 「作品」Tab 成为首页（index = 0）
+- 大纲/资料的空状态引导 `bottomNavIndex` 从 1 改为 0
+
+### 37.3 作品首页（WorksPage 重写）
+
+**文件**：`lib/presentation/pages/works/works_page.dart`
+
+**AppBar 改造**：
+- 标题左对齐「网文写作IDE」
+- 右侧：导入按钮 + 设置按钮（进入 ProfilePage）
+
+**顶部统计栏**：
+- 渐变色背景（AppColors.primary），带阴影
+- 三列统计：作品数 / 总字数 / 总章节
+
+**作品卡片**：
+- 封面区域 68×92，渐变色背景 + 章节数
+- 书名 17px 加粗 + 简介 13px 灰色限2行
+- 底部标签：字数 / 章节数 / 更新时间（小图标+文字）
+- Card elevation: 2, 圆角 16px
+
+**空状态**：
+- 圆形渐变图标 + 引导文案
+- 「新建作品」FilledButton + 「导入 TXT/MD 文件」TextButton
+
+**长按菜单**：
+- 底部弹窗：重命名 / 导出 / 删除
+
+### 37.4 作品详情页（NovelDetailPage 优化）
+
+**文件**：`lib/presentation/pages/works/novel_detail_page.dart`
+
+**AppBar**：新增全局搜索 + 导出按钮
+
+**卷头**：
+- 渐变背景（primary 0.08 → 0.03）
+- 卷序号标签 + 章数/字数统计
+
+**章节列表项**：
+- 状态标签（彩色背景圆角）+ 字数
+- 状态指示条（左侧 4px 彩色竖条）
+
+**底部 FAB**：
+- 找到最近编辑的章节
+- 显示「继续写作 · {章节名}」
+
+### 37.5 导出页折叠收缩
+
+**文件**：`lib/presentation/pages/works/export_page.dart`
+
+- 「章节正文」「作品资料」两个区域标题增加折叠/展开箭头
+- 使用 `AnimatedRotation` 动画（200ms）
+- 章节标题旁增加紫色章数标签
+- 底部「保存到本地」按钮样式优化（圆角12px、文字精简）
+
+### 37.6 改动文件清单
+
+| 文件 | 操作 |
+|------|------|
+| `lib/presentation/pages/main_shell.dart` | 5 Tab → 4 Tab |
+| `lib/presentation/pages/works/works_page.dart` | 全面重写为首页 |
+| `lib/presentation/pages/works/novel_detail_page.dart` | UI优化 + 搜索/导出/继续写作 |
+| `lib/presentation/pages/works/export_page.dart` | 折叠收缩 + 按钮优化 |
+| `lib/presentation/pages/outline/outline_page.dart` | 空状态引导 index 调整 |
+| `lib/presentation/pages/materials/materials_page.dart` | 空状态引导 index 调整 |
+| `lib/core/constants.dart` | AppStrings 微调 |
+| `lib/presentation/pages/writing/writing_page.dart` | 保留但不再引用（已废弃） |
 
