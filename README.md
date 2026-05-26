@@ -10,10 +10,10 @@
 
 ## 📥 下载安装
 
-| 平台 | 状态 | 最新版本 | 下载 |
-|------|------|---------|------|
-| **Android** | ✅ 已发布 | V1.4.0 | [下载 APK](https://github.com/qq1375828505/novelIDE/releases/download/v1.4.0/novel-ide-android-v1.4.0.apk) |
-| **Windows** | 🔨 开发中 | — | [查看源码](win版/novel-ide-windows/) |
+| 平台 | 状态 | 下载 |
+|------|------|------|
+| **Android** | ✅ 已发布 | [下载 APK](https://github.com/qq1375828505/novelIDE/releases/latest) |
+| **Windows** | 🔨 开发中 | [查看源码](win版/novel-ide-windows/) |
 
 > Android 版支持 Android 6.0+，无需注册，安装即用。
 > Windows 版基于 Electron + Monaco Editor，正在开发中。
