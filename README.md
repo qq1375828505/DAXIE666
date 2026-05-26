@@ -12,7 +12,7 @@
 
 | 平台 | 状态 | 最新版本 | 下载 |
 |------|------|---------|------|
-| **Android** | ✅ 已发布 | V1.3.0 | [下载 APK](https://github.com/qq1375828505/DAXIE666/releases/download/v1.3.0/app-release.apk) |
+| **Android** | ✅ 已发布 | V1.3.0 | [下载 APK](https://github.com/qq1375828505/novelIDE/releases/download/v1.3.0/app-release.apk) |
 | **Windows** | 🔨 开发中 | — | [查看源码](win版/novel-ide-windows/) |
 
 > Android 版支持 Android 6.0+，无需注册，安装即用。
@@ -345,7 +345,7 @@ lib/
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/qq1375828505/DAXIE666.git
+git clone https://github.com/qq1375828505/novelIDE.git
 
 # 2. 进入项目目录
 cd DAXIE666
@@ -457,5 +457,5 @@ MIT
 
 ## 🤝 支持与反馈
 
-- 提交 Issue：[GitHub Issues](https://github.com/qq1375828505/DAXIE666/issues)
-- 源码仓库：[DAXIE666](https://github.com/qq1375828505/DAXIE666)
+- 提交 Issue：[GitHub Issues](https://github.com/qq1375828505/novelIDE/issues)
+- 源码仓库：[DAXIE666](https://github.com/qq1375828505/novelIDE)
