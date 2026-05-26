@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
+import 'package:novel_ide/data/models/tomato_agent_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
@@ -394,6 +395,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 color: AppColors.primary,
                 onPressed: () => _showAttachMenu(context),
               ),
+              // ⚡ 技能按钮
+              IconButton(
+                icon: const Icon(Icons.auto_awesome, size: 24),
+                color: AppColors.tomatoOrange,
+                tooltip: '调用技能',
+                onPressed: _showAgentSelector,
+              ),
               Expanded(
                 child: TextField(
                   controller: _inputCtrl,
@@ -483,7 +491,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 subtitle: const Text('AI 写作技能和预设', style: TextStyle(fontSize: 12, color: Colors.grey)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  // TODO: 跳转到技能/预设选择页面
+                  _showAgentSelector();
                 },
               ),
               const SizedBox(height: 8),
@@ -492,6 +500,146 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       ),
     );
+  }
+
+  /// Agent选择器 — 底部弹窗
+  void _showAgentSelector() {
+    final agents = ref.read(tomatoAgentsProvider);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 拖拽指示条
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 20, color: AppColors.tomatoOrange),
+                  SizedBox(width: 8),
+                  Text('调用技能', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 8),
+                  Text('选择Agent执行专项任务', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: agents.length,
+                itemBuilder: (context, index) {
+                  final agent = agents[index];
+                  return ListTile(
+                    leading: Text(agent.icon, style: const TextStyle(fontSize: 28)),
+                    title: Text(agent.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(agent.description, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    trailing: const Icon(Icons.play_circle_outline, color: AppColors.tomatoOrange),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _invokeAgent(agent);
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 调用Agent — 用Agent的system prompt + 当前对话上下文
+  Future<void> _invokeAgent(TomatoAgent agent) async {
+    final config = ref.read(selectedAiConfigProvider);
+    if (config == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先在"我的"页面配置AI模型')),
+      );
+      return;
+    }
+
+    // Auto-create session if none
+    if (_currentSession == null) _newSession();
+
+    // 显示Agent调用提示
+    final userMessage = '请执行「${agent.name}」任务';
+    setState(() {
+      _currentSession!.messages.add({
+        'role': 'user',
+        'content': '⚡ ${agent.name}\n$userMessage',
+      });
+      if (_currentSession!.messages.length == 1) {
+        _currentSession!.title = agent.name;
+      }
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    try {
+      // 构建对话上下文（取最近20条消息）
+      final recentMsgs = _currentSession!.messages
+          .where((m) => m != _currentSession!.messages.last)
+          .toList();
+      final contextMsgs = recentMsgs.length > 20
+          ? recentMsgs.sublist(recentMsgs.length - 20)
+          : recentMsgs;
+
+      // 加载记忆
+      String memoryContext = '';
+      try {
+        final novel = ref.read(selectedNovelProvider);
+        if (novel != null) {
+          memoryContext = await NovelMemory.getForAiContext(novel.id, novel.title);
+        }
+      } catch (_) {}
+      String userMemoryContext = '';
+      try {
+        userMemoryContext = await UserMemory.getForAiContext();
+      } catch (_) {}
+
+      final aiService = ref.read(aiServiceProvider);
+
+      // 构建消息列表：Agent的system prompt + 对话历史 + 当前请求
+      final messages = <Map<String, String>>[
+        {'role': 'system', 'content': '${agent.systemPrompt}\n$memoryContext$userMemoryContext'},
+        ...contextMsgs.map((m) => {'role': m['role']!, 'content': m['content']!}),
+        {'role': 'user', 'content': userMessage},
+      ];
+
+      final aiText = await aiService.chat(config, messages, taskType: 'agent');
+
+      setState(() {
+        _currentSession!.messages.add({
+          'role': 'assistant',
+          'content': '【${agent.name}】\n$aiText',
+        });
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _currentSession!.messages.add({
+          'role': 'assistant',
+          'content': '【${agent.name}】调用失败: $e',
+        });
+        _isLoading = false;
+      });
+    }
   }
 
   /// 选择文件
