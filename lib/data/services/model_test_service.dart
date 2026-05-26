@@ -34,6 +34,9 @@ class ModelTestService {
       if (e.response?.statusCode == 403) {
         throw Exception('API Key 无权限 (403 Forbidden)');
       }
+      if (e.response?.statusCode == 404) {
+        throw Exception('API地址错误 (404 Not Found)，请检查URL是否正确');
+      }
       throw Exception('连接失败: ${e.message}');
     }
   }
