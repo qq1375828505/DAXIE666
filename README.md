@@ -12,7 +12,7 @@
 
 | 平台 | 状态 | 最新版本 | 下载 |
 |------|------|---------|------|
-| **Android** | ✅ 已发布 | V1.4.0 | [下载 APK](https://github.com/qq1375828505/DAXIE666/releases/download/v1.4.0/novel-ide-android-v1.4.0.apk) |
+| **Android** | ✅ 已发布 | V1.3.0 | [下载 APK](https://github.com/qq1375828505/DAXIE666/releases/download/v1.3.0/app-release.apk) |
 | **Windows** | 🔨 开发中 | — | [查看源码](win版/novel-ide-windows/) |
 
 > Android 版支持 Android 6.0+，无需注册，安装即用。

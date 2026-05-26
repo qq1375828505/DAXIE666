@@ -38,11 +38,14 @@ jobs:
     - name: Build APK
       run: flutter build apk --release
 
+    - name: Rename APK
+      run: cp build/app/outputs/flutter-apk/app-release.apk novel-ide-android-v${{ steps.get_version.outputs.VERSION }}.apk
+
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: release-apk
-        path: build/app/outputs/flutter-apk/app-release.apk
+        path: novel-ide-android-v${{ steps.get_version.outputs.VERSION }}.apk
 
     # 自动创建 Release 并上传 APK（仅 master 分支 push，非 PR）
     - name: Auto Release
@@ -62,6 +65,6 @@ jobs:
           - 时间: ${{ github.event.head_commit.timestamp }}
 
           **安装说明**：支持 Android 6.0+，下载 APK 后直接安装即可。
-        files: build/app/outputs/flutter-apk/app-release.apk
+        files: novel-ide-android-v${{ steps.get_version.outputs.VERSION }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
