@@ -28,16 +28,20 @@ Android版可以独立完成：
 | 层级 | 技术 | 说明 |
 |------|------|------|
 | 框架 | Flutter 3.x | Android单端优先，后续可复用部分逻辑 |
-| 状态管理 | Riverpod | 管理作品、章节、编辑器状态、AI状态 |
+| 状态管理 | Riverpod | 管理作品、章节、编辑器状态、AI状态、主题皮肤状态 |
 | 本地索引 | SQLite (sqflite) | 作品列表、章节索引、搜索索引、写作统计、缓存 |
-| 本地配置 | Hive | 主题、字体、编辑器偏好、最近打开记录 |
+| 本地配置 | Hive | 主题、字体、编辑器偏好、最近打开记录、皮肤持久化 |
 | 作品源文件 | Markdown + JSON | 正文、角色、设定、大纲、伏笔、AI预设 |
 | 作品包 | `.novelpack` | 本质为zip，便于手动同步和备份 |
-| 编辑器 | **TextField(maxLines: null)** | 只编辑当前章节，避免整本加载 |
+| 富文本编辑器 | **WebView + rich_editor.js** | 复用起点作家JS引擎，支持加粗/标题/引用/列表/链接/图片 |
+| 纯文本编辑器 | **TextField(maxLines: null)** | 轻量级方案，保留为备用编辑器 |
+| 主题系统 | **8种皮肤 (app_themes.dart)** | 白/黑/蓝护眼/黄暖光/绿清新/粉/日系木色/红 |
+| 校对引擎 | **Dart原生实现 (proofread_service.dart)** | 60+错别字词库 + 标点修正 + 中英文混用检测 |
+| EPUB导出 | **archive + EPUB结构** | 标准EPUB 3.0，含目录/章节/样式，无需epubx Schema |
 | 网络 | Dio | 直接请求用户配置的AI API、搜索API |
 | 安全 | flutter_secure_storage | API Key加密 |
 | 权限 | permission_handler | 运行时权限请求（存储、麦克风、通知等） |
-| 文件 | file_picker + path_provider + archive | 导入导出源文件和`.novelpack` |
+| 文件 | file_picker + path_provider + archive | 导入导出源文件、`.novelpack`、EPUB |
 | 图表 | fl_chart | 写作统计 |
 
 ---
@@ -2245,4 +2249,148 @@ final outputPath = await FilePicker.platform.saveFile(
 **根因分析**：`_showImportDialog` 方法被错误地放在了 `NovelDetailPage` 类的花括号外面，变成了顶层函数，导致类内部无法调用。
 
 **修复方案**：将该方法移入 `NovelDetailPage` 类内部。
+
+---
+
+## 32. V1.4.0 — 主题皮肤系统
+
+### 32.1 架构
+
+```
+app_themes.dart          → 8种 SkinTheme 定义（颜色常量 + ThemeData 生成）
+skin_provider.dart       → StateNotifier<SkinTheme> + Hive 持久化
+main.dart                → MaterialApp.theme 改为 watch(skinThemeProvider)
+profile_page.dart        → 网格卡片选择器 UI
+```
+
+**关键类**：
+- `SkinType` 枚举：white/black/blue/yellow/green/pink/wood/red
+- `SkinTheme` 数据类：包含 primary/secondary/background/surface/textPrimary/textSecondary 等 13 个颜色属性
+- `SkinThemeNotifier`：通过 `Hive.box('settings').put('skin_type', index)` 持久化
+- `toThemeData()`：将 SkinTheme 转为 Material 3 `ThemeData`
+
+**兼容旧代码**：原 `AppColors` 常量保留不变，新页面优先使用 `skinThemeProvider`。
+
+---
+
+## 33. V1.4.0 — WebView 富文本编辑器
+
+### 33.1 架构
+
+```
+rich_editor_page.dart     → Flutter WebView 容器 + 格式工具栏
+assets/editor/            → 从起点作家 APK 提取的 9 个资源文件
+  ├── editor.html         → 编辑器主页面
+  ├── rich_editor.js      → 核心编辑器逻辑（63KB）
+  ├── WeReadApi.js        → JS Bridge（已改造为 FlutterBridge）
+  ├── style.css           → 编辑器样式
+  ├── news.css            → 主题/字号样式
+  ├── normalize.css       → CSS 重置
+  ├── rich_display.js     → 展示模式
+  ├── style_html.js       → HTML 格式化
+  └── article_display.js  → 文章展示
+```
+
+### 33.2 通信机制
+
+由于项目完全单机运行，不使用 Android 原生的 `evaluateJavascript`，而是：
+
+1. **Flutter → JS**：`WebViewController.runJavaScript('RE.setBold()')` 直接调用
+2. **JS → Flutter**：通过 `FlutterBridge.postMessage(JSON.stringify(...))` 发送消息到 `JavaScriptChannel`
+3. **JS 兼容层**：在 HTML 中注入 `window.wereadBridge` 对象，将原 `wereadBridge` 调用重定向到 `FlutterBridge`
+
+### 33.3 资源加载方式
+
+不使用 `loadFlutterAsset`（无法加载相对路径的 CSS/JS），而是：
+- 在 `Future<void>` 中用 `rootBundle.loadString()` 读取所有资源文件
+- 合并为一个自包含 HTML 字符串
+- 通过 `WebViewController.loadHtmlString(html)` 加载
+
+### 33.4 格式工具栏
+
+| 按钮 | JS 调用 | 功能 |
+|------|---------|------|
+| B | `RE.setBold()` | 加粗 |
+| I | `RE.setItalic()` | 斜体 |
+| H1 | `RE.setHeading('h1')` | 一级标题 |
+| H2 | `RE.setHeading('h2')` | 二级标题 |
+| 引用 | `RE.setBlockquote()` | 引用块 |
+| 列表 | `RE.setUnorderedList()` | 无序列表 |
+| 链接 | `RE.insertLink(text, href)` | 插入超链接 |
+| 图片 | `RE.insertImage([...])` | 插入图片 |
+| 格式清除 | `RE.removeFormat()` | 清除格式 |
+
+---
+
+## 34. V1.4.0 — EPUB 电子书导出
+
+### 34.1 实现方案
+
+不使用 `epubx` 库（其创建 API 需要完整的 EpubSchema，复杂度高），而是直接使用 `archive` 包手动构建 EPUB 文件结构：
+
+```
+EPUB = ZIP 压缩包，包含：
+├── mimetype                    → 固定内容 "application/epub+zip"（不压缩）
+├── META-INF/container.xml      → 指向 OEBPS/content.opf
+└── OEBPS/
+    ├── content.opf             → OPF 包描述（元数据 + 资源清单 + 书脊）
+    ├── toc.ncx                 → 目录文件（NCX 格式，支持卷/章层级）
+    ├── style.css               → 章节样式
+    └── chapter_1.xhtml         → 章节内容（纯文本转 HTML 段落）
+        chapter_2.xhtml
+        ...
+```
+
+### 34.2 关键文件
+
+- `lib/data/services/epub_export_service.dart`：EPUB 生成核心逻辑
+- 调用 `ZipEncoder().encode(archive)` 生成最终文件
+
+---
+
+## 35. V1.4.0 — 跨章节全局搜索替换
+
+### 35.1 实现
+
+- 文件：`lib/presentation/pages/writing/global_search_page.dart`
+- 路由：`/global-search`，参数 `{novelId, novelTitle}`
+- 搜索范围：SQLite 章节表 + 文件系统读取所有章节正文
+- 结果列表：章节名 + 匹配行（黄色高亮关键词）
+- 替换功能：单条替换 + 全部替换（`String.replaceAll`）
+- 点击结果可跳转（预留接口）
+
+---
+
+## 36. V1.4.0 — 文章校对引擎
+
+### 36.1 架构
+
+文件：`lib/data/services/proofread_service.dart`
+
+**三个校对维度**：
+
+| 维度 | 实现方式 | 规则数 |
+|------|---------|--------|
+| 错别字 | 静态词库（List<[wrong, correct]>） | 60+ 对 |
+| 标点符号 | 字符串模式匹配 | 12 条规则 |
+| 重复用字 | 正则 `([一-鿿])\1{2,}` | 动态检测 |
+
+### 36.2 校对流程
+
+```
+读取章节文件 → proofreadText(text, chapterId, chapterTitle)
+  ├── 错别字遍历 → ProofreadItem(type: 'typo', ...)
+  ├── 标点修正遍历 → ProofreadItem(type: 'punctuation', ...)
+  ├── 中英文标点混用检测 → ProofreadItem(type: 'punctuation', ...)
+  └── 重复用字检测 → ProofreadItem(type: 'suggestion', ...)
+→ 按 position 排序 → 返回 List<ProofreadItem>
+```
+
+### 36.3 UI
+
+- 文件：`lib/presentation/pages/writing/proofread_page.dart`
+- 顶部统计摘要（错别字/标点/建议 各多少）
+- 筛选栏（全部/错别字/标点/建议）
+- 结果卡片：红色左边框（错别字）/ 橙色（标点）/ 蓝色（建议）
+- 显示 原文→建议 + 上下文片段
 
