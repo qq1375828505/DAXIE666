@@ -16,10 +16,11 @@ class NovelImportService {
   static const int maxChapterTitleLength = 50;
 
   /// 从文件导入小说，自动拆分章节
+  /// 如果不传入 novelId/novelTitle，会自动创建新作品
   /// 返回导入的章节数量
   Future<ImportResult> importFromFile({
-    required String novelId,
-    required String novelTitle,
+    String? novelId,
+    String? novelTitle,
     required String filePath,
     String? volumeId,
   }) async {
@@ -63,14 +64,41 @@ class NovelImportService {
     // 写入数据库和文件系统
     final db = await DatabaseHelper().database;
     final fs = LocalFileDataSource();
-    final projectPath = await fs.getProjectDir(novelId, novelTitle);
+
+    // 如果没有传入 novelId，自动创建新作品
+    String actualNovelId = novelId ?? '';
+    String actualNovelTitle = novelTitle ?? '';
+
+    if (actualNovelId.isEmpty) {
+      // 从文件名提取作品标题
+      actualNovelTitle = p.basenameWithoutExtension(filePath);
+      if (actualNovelTitle.length > 50) {
+        actualNovelTitle = actualNovelTitle.substring(0, 50);
+      }
+      actualNovelId = _uuid.v4();
+
+      // 创建作品记录
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert('novels', {
+        'id': actualNovelId,
+        'title': actualNovelTitle,
+        'author': '',
+        'description': '从文件导入：${p.basename(filePath)}',
+        'status': 'ongoing',
+        'word_count': content.length,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
+
+    final projectPath = await fs.getProjectDir(actualNovelId, actualNovelTitle);
     final chaptersDir = Directory(p.join(projectPath, 'chapters'));
     if (!await chaptersDir.exists()) await chaptersDir.create(recursive: true);
 
     // 获取当前最大 order_index
     final existing = await db.query('chapters',
         where: 'novel_id = ? AND volume_id = ?',
-        whereArgs: [novelId, volumeId ?? ''],
+        whereArgs: [actualNovelId, volumeId ?? ''],
         orderBy: 'order_index DESC',
         limit: 1);
     int startIndex = 0;
@@ -83,13 +111,13 @@ class NovelImportService {
     if (actualVolumeId == null || actualVolumeId.isEmpty) {
       // 查找或创建默认卷
       final volumes = await db.query('volumes',
-          where: 'novel_id = ?', whereArgs: [novelId],
+          where: 'novel_id = ?', whereArgs: [actualNovelId],
           orderBy: 'order_index ASC');
       if (volumes.isEmpty) {
         actualVolumeId = _uuid.v4();
         await db.insert('volumes', {
           'id': actualVolumeId,
-          'novel_id': novelId,
+          'novel_id': actualNovelId,
           'title': '正文',
           'order_index': 0,
           'summary': '',
@@ -111,7 +139,7 @@ class NovelImportService {
       // 写入数据库
       await db.insert('chapters', {
         'id': chapterId,
-        'novel_id': novelId,
+        'novel_id': actualNovelId,
         'volume_id': actualVolumeId,
         'title': ch.title,
         'word_count': ch.content.length,

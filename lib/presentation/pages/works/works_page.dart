@@ -5,11 +5,13 @@ import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/presentation/pages/works/novel_detail_page.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
+import 'package:novel_ide/data/services/novel_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart';
+import 'package:path/path.dart' as p;
 
 class WorksPage extends ConsumerWidget {
   const WorksPage({super.key});
@@ -186,12 +188,30 @@ class WorksPage extends ConsumerWidget {
                   final result = await FilePicker.platform.pickFiles(
                     dialogTitle: '选择小说文件',
                     type: FileType.custom,
-                    allowedExtensions: ['txt', 'md', 'docx'],
+                    allowedExtensions: ['txt', 'md', 'docx', 'novelpack'],
                   );
                   if (result != null && result.files.single.path != null) {
+                    final filePath = result.files.single.path!;
+                    final ext = p.extension(filePath).toLowerCase();
+                    
                     try {
-                      final fs = LocalFileDataSource();
-                      await fs.importNovelPack(result.files.single.path!);
+                      if (ext == '.novelpack') {
+                        // .novelpack 格式：解压导入
+                        final fs = LocalFileDataSource();
+                        await fs.importNovelPack(filePath);
+                      } else if (ext == '.txt' || ext == '.md' || ext == '.docx') {
+                        // 文本文件：自动拆章导入（自动创建新作品）
+                        final service = NovelImportService();
+                        final importResult = await service.importFromFile(
+                          filePath: filePath,
+                        );
+                        if (!importResult.success) {
+                          throw Exception(importResult.error ?? '导入失败');
+                        }
+                      } else {
+                        throw Exception('不支持的文件格式: $ext');
+                      }
+                      
                       ref.invalidate(novelsProvider);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
