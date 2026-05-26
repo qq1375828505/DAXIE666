@@ -14,17 +14,30 @@ import 'package:novel_ide/data/services/model_test_service.dart';
 import 'package:novel_ide/presentation/pages/profile/app_config_page.dart';
 import 'package:novel_ide/presentation/pages/profile/user_memory_page.dart';
 
-/// 自动补全 API 地址
-/// 用户可能只填域名（如 https://api.deepseek.com），
-/// 自动补全为完整路径（如 https://api.deepseek.com/v1/chat/completions）
-String _normalizeApiUrl(String url) {
+/// 智能补全 API 地址
+/// 根据用户填的 URL 和协议类型自动补全：
+/// - 已包含 /chat/completions → 不变
+/// - 以 /v1 结尾 → 补全 /chat/completions
+/// - 以 /anthropic 结尾 → 补全 /v1/messages（Anthropic协议）
+/// - 其他 → 补全 /v1/chat/completions
+String _normalizeApiUrl(String url, ApiProtocol protocol) {
   url = url.trim();
   if (url.isEmpty) return url;
-  // 已经包含 /chat/completions，直接返回
+
+  // 已经是完整路径，直接返回
   if (url.contains('/chat/completions')) return url;
-  // 已经以 /v1 结尾，补全
+  if (url.contains('/v1/messages')) return url;
+
+  // Anthropic 协议特殊处理
+  if (protocol == ApiProtocol.anthropic) {
+    if (url.endsWith('/anthropic')) return '$url/v1/messages';
+    if (url.endsWith('/v1')) return '$url/messages';
+    if (!url.endsWith('/')) url = '$url/';
+    return '${url}v1/messages';
+  }
+
+  // OpenAI 兼容协议
   if (url.endsWith('/v1')) return '$url/chat/completions';
-  // 没有尾部斜杠，补上
   if (!url.endsWith('/')) url = '$url/';
   return '${url}v1/chat/completions';
 }
@@ -366,7 +379,7 @@ class ProfilePage extends ConsumerWidget {
                       try {
                         final tempConfig = AiConfig(
                           id: 'temp', name: 'temp',
-                          apiUrl: _normalizeApiUrl(urlCtrl.text), modelName: modelCtrl.text,
+                          apiUrl: _normalizeApiUrl(urlCtrl.text, selectedProtocol), modelName: modelCtrl.text,
                           apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
                           protocol: selectedProtocol,
                         );
@@ -428,7 +441,7 @@ class ProfilePage extends ConsumerWidget {
                       try {
                         final tempConfig = AiConfig(
                           id: 'temp', name: 'temp',
-                          apiUrl: _normalizeApiUrl(urlCtrl.text), modelName: modelCtrl.text,
+                          apiUrl: _normalizeApiUrl(urlCtrl.text, selectedProtocol), modelName: modelCtrl.text,
                           apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
                           protocol: selectedProtocol,
                         );
@@ -461,7 +474,7 @@ class ProfilePage extends ConsumerWidget {
                 final config = AiConfig(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   name: nameCtrl.text.trim(),
-                  apiUrl: _normalizeApiUrl(urlCtrl.text),
+                  apiUrl: _normalizeApiUrl(urlCtrl.text, selectedProtocol),
                   modelName: modelCtrl.text.trim(),
                   protocol: selectedProtocol,
                 );
