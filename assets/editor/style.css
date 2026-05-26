@@ -1,0 +1,426 @@
+/**
+ * Copyright (C) 2015 Wasabeef
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@charset "UTF-8";
+
+/****** global ******/
+
+@font-face {
+  font-family: 'fzssjt_Android';
+  src: url('file:///android_asset/fonts/fang_zheng_song_san_jian_ti.ttf');
+}
+
+@font-face {
+  font-family: 'fzfsjt_Android';
+  src: url('file:///sdcard/tencent/weread/fonts/fang_zheng_fang_song_jian_ti.ttf');
+}
+
+* {
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    -webkit-touch-callout: none;
+}
+
+html {
+    height:100%;
+}
+
+body {
+    height:100%;
+    overflow:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.re {
+    position: relative;
+    min-height:100%;
+    overflow:hidden;
+    outline:0px solid transparent;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size:cover;
+    -webkit-user-select:auto !important;
+    -webkit-user-modify:read-write !important;
+    font-size: 17px;
+    line-height: 28px;
+    font-family: "SF UI Text","PingFang SC","Lucida Grande", STheiti;
+    color: #353c46;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+
+.re_Display {
+    -webkit-user-modify:read-only !important;
+}
+
+.re[placeholder]:empty:before {
+    content:attr(placeholder);
+    opacity:0.3;
+}
+.re_placeholder:before {
+    content:attr(placeholder);
+    opacity:0.3;
+    position: absolute;
+    top: 0;
+}
+
+/****** widget ******/
+
+/*.re div, .re p {
+    margin: 18px 0px 0px 0px;
+}
+
+.re *:first-child{
+    margin-top: 0 !important;
+}
+
+.re div p, .re p div {
+    margin: 0px;
+}
+
+blockquote {
+    margin: 18px 0px 0px 0px;
+    padding: 14px;
+    color: #353C46;
+    border-left: 2px solid #D4D6D8;
+    background-color: #F4F5F7;
+    font-weight 300;
+}
+
+blockquote *{
+    font-family: inherit !important;
+    font-size: inherit !important;
+}
+
+blockquote p:empty{
+    display: none;
+}
+
+blockquote p:first-child,
+blockquote p:empty:first-child + p{
+    margin-top: 0;
+}
+
+blockquote p:first-child{
+    margin-top: 0;
+}
+
+a, .re_link {
+    text-decoration:none;
+    color: rgba(84, 127, 176, 1);
+}
+
+ul, ol {
+    list-style-type: none;
+    padding: 0px;
+    margin: 18px 0px 0px 0px;
+    overflow: hidden; *//*触发bfc*//*
+}
+
+.re div ul, .re div ol {
+    margin: 0px;
+}
+
+.re p ul, .re p ol {
+    margin: 0px;
+}
+
+ul li, ol li {
+    margin-top: 2px;
+    padding: 0px 0px 0px 24px;
+}
+
+ul li:first-of-type, ol li:first-of-type {
+    margin-top: 0px;
+}
+
+ul li:before, ol li:before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background-color: #353C46;
+    border-radius: 3px;
+    float: left;
+    margin-top: 10px;
+    margin-left: -18px;
+}
+
+h1, h2 {
+    margin: 18px 0px 0px 0px;
+    overflow: hidden;
+    font-weight: normal;
+    font-size: 24px;
+    line-height: 1.4;
+    font-family: 'fzssjt_Android';
+}*/
+
+/** hack掉系统产生的奇怪span **/
+.re p span,
+.re h1 span,
+.re h2 span,
+.re h3 span,
+.re blockquote span,
+.re ul span{
+    font-family: inherit !important;
+    font-size: inherit !important;
+    color: inherit !important;
+}
+
+.re .re_bookItem{
+    display: inline-block;
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 18px;
+    padding: 0px 16px 0px 0px;
+    -webkit-user-select: none !important;
+    border: 1px solid #dee0e2;
+    vertical-align: bottom;
+    box-shadow: 0px 1px 4px 0px rgba(0,0,0,0.03);
+}
+.re .re_bookItem_Touched{
+    background: #f8fafc;
+}
+@media (-webkit-min-device-pixel-ratio: 2){
+    .re .re_bookItem{
+        position: relative;
+        border: none;
+    }
+    .re .re_bookItem:after{
+        content:"";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200%;
+        height: 200%;
+        box-sizing: border-box;
+        border: 1px solid #dee0e2;
+        pointer-events: none;
+        -webkit-transform: scale(0.5);
+        -webkit-transform-origin: 0 0;
+        transform: scale(0.5);
+        transform-origin: 0 0;
+    }
+}
+@media (-webkit-min-device-pixel-ratio: 3){
+    .re .re_bookItem:after{
+        width: 300%;
+        height: 300%;
+        transform: scale(0.3333);
+        transform-origin: 0 0;
+        -webkit-transform: scale(0.3333);
+        -webkit-transform-origin: 0 0;
+    }
+}
+.re .re_bookItem_cover{
+    float: left;
+    width: 60px;
+    height: 86px;
+    margin-right: 16px;
+    margin-top: 0;
+    background: #fff;
+    border-right: 1px solid rgba(0,0,0,0.10);
+}
+@media (-webkit-min-device-pixel-ratio: 2){
+    .re .re_bookItem_cover{
+        position: relative;
+        border: none;
+    }
+    .re .re_bookItem_cover:after{
+        content:"";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200%;
+        height: 200%;
+        box-sizing: border-box;
+        border-right: 1px solid rgba(0,0,0,0.10);
+        pointer-events: none;
+        transform: scale(0.5);
+        transform-origin: 0 0;
+        -webkit-transform: scale(0.5);
+        -webkit-transform-origin: 0 0;
+    }
+}
+@media (-webkit-min-device-pixel-ratio: 3){
+    .re .re_bookItem_cover:after{
+        width: 300%;
+        height: 300%;
+        transform: scale(0.3333);
+        transform-origin: 0 0;
+        -webkit-transform: scale(0.3333);
+        -webkit-transform-origin: 0 0;
+    }
+}
+.re .re_bookItem_cover_img{
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.re .re_bookItem_title{
+    line-height: 20px;
+    text-align: left;
+    margin: 0;
+    margin-top: 21px;
+    font-size: 17px;
+    color: #5D646E;
+    font-family: 'fzssjt_Android';
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.re .re_bookItem_author{
+    margin-top: 8px;
+    font-size: 15px;
+    line-height: 18px;
+    color: #858C96;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'fzssjt_Android';
+}
+/*.re_img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 18px auto 0px;
+    background-color: #f4f5f7;
+    outline: 1px solid rgba(0,0,0,0.1);
+    outline-offset: -1px;
+}
+.re_img {
+    display: block;
+    max-width: 100%;
+    margin: 18px auto 0px;
+    background-color: #f4f5f7;
+}*/
+
+/*.re_Write .re_img{
+    display: inline-block;
+    width: 100%;
+    vertical-align: bottom;
+}
+
+.re_Write .re_img_MarginTop{
+  margin-top: 18px !important;
+}
+
+.re_Write .re_img_MarginBottom{
+  margin-bottom: 18px !important;
+}*/
+
+.bodyPic {
+    text-align: center !important;
+    margin: 18px auto 0px;
+}
+
+/*.bodyPic .re_img {
+    display: inline-block;
+    max-width: 100%;
+    margin: 0;
+    outline: 1px solid rgba(0,0,0,0.1);
+    outline-offset: -1px;
+}*/
+
+/** display 特供样式: 为了让图片宽度撑满全屏。**/
+
+.re_Display{
+    padding: 0 20px;
+}
+.re_Display .bodyPic{
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+}
+
+.re_Display .emoji {
+    /* 展示的webview字体比较大，为了视觉居中，加上一个margin */
+    margin-top: -1px;
+}
+
+/****** night theme ******/
+
+/*.re_Night {
+    color: rgba(196, 200, 204, 1);
+}
+
+.re_Night blockquote {
+    color: rgba(196, 200, 204, 1);
+    border-left: 1px solid rgba(116, 120, 124, 1)
+}
+
+.re_Night a, .re_Night .re_Night {
+    color: rgba(84, 127, 176, 1);
+}
+
+.re_Night ul li:before, .re_Night ol li:before {
+    background-color: rgba(196, 200, 204, 1);
+}*/
+
+/*.re div, .re p {
+    margin: 15px 0px 0px 0px;
+    text-align: justify;
+}*/
+
+
+/****** article tile ******/
+#titleInput{
+    padding-top: 10px;
+    margin-bottom: 13px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #dee0e2;
+    display: none;
+}
+#titleInput_text{
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    height: 28px;
+    line-height: 28px;
+    font-size: 24px;
+    border: none;
+    resize: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
+@media (-webkit-min-device-pixel-ratio: 2){
+    #titleInput{
+        position: relative;
+        border: none;
+    }
+    #titleInput:after{
+        content:"";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #dee0e2;
+        pointer-events: none;
+        transform: scaleY(0.5);
+        transform-origin: 0 100%;
+        -webkit-transform: scaleY(0.5);
+        -webkit-transform-origin: 0 100%;
+    }
+}
+@media (-webkit-min-device-pixel-ratio: 3){
+    #titleInput:after{
+        transform: scaleY(0.3333);
+        transform-origin: 0 100%;
+        -webkit-transform: scaleY(0.3333);
+        -webkit-transform-origin: 0 100%;
+    }
+}

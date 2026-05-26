@@ -30,6 +30,8 @@ dependencies:
   intl: ^0.19.0
   flutter_local_notifications: ^18.0.0
   permission_handler: ^11.3.1
+  epubx: ^4.0.0
+  webview_flutter: ^4.10.0
 
 
 dev_dependencies:
@@ -45,3 +47,12 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tomato/
+    - assets/editor/editor.html
+    - assets/editor/rich_editor.js
+    - assets/editor/WeReadApi.js
+    - assets/editor/style.css
+    - assets/editor/normalize.css
+    - assets/editor/news.css
+    - assets/editor/rich_display.js
+    - assets/editor/style_html.js
+    - assets/editor/article_display.js

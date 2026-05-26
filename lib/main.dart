@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/core/router.dart';
+import 'package:novel_ide/core/theme/skin_provider.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/config_service.dart';
 import 'package:novel_ide/data/services/connectivity_service.dart';
@@ -70,12 +71,13 @@ class _NovelIdeAppState extends ConsumerState<NovelIdeApp> {
 
   @override
   Widget build(BuildContext context) {
+    final skinTheme = ref.watch(skinThemeProvider);
     final isDark = ref.watch(darkModeProvider);
 
     return MaterialApp(
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: skinTheme.toThemeData(),
       darkTheme: AppTheme.dark,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       initialRoute: AppRouter.home,

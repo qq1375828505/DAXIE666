@@ -1,0 +1,290 @@
+@charset "UTF-8";
+/*
+* @ 内容精排样式
+* @ author ZhangHengRong
+* @ create 2017-04-06
+**/
+* {
+  padding: 0;
+  margin: 0; }
+
+.re_Write p, .re_Write div, .re_Write ul, .re_Write ol, .re_Write h3, .re_Write blockquote {
+  /* margin: 1em 1.5em; */
+  margin: 1em 0;
+  line-height: 2em;
+  color: #525a66; }
+
+  .re_Write{
+    padding: 0 20px;
+  }
+
+  .re_Write *:first-child {
+    margin-top: 0 !important;
+  }
+  
+
+
+.re_Write a {
+  color: #3981e6; }
+
+.re_Write h2 {
+  /* margin: 0.8em 1.3em; */
+  margin: 0.8em 0;
+  font-weight:normal;
+  color: #1f2226; }
+
+.re_Write h3 {
+  /* margin: 0.8em 1.3em; */
+  margin: 0.8em 0;
+  font-weight:normal;
+  color: #1f2226; }
+
+.re_Write blockquote {
+  margin: 1em 0;
+  padding: 1em 1.3em;
+  border-left: 0.3em solid #525a66;
+  background-color: #f2f6fa; }
+
+.re_Write img {
+  display: block;
+  width: 100%; }
+
+.re_Write ol {
+  /* margin: 1em 3.2em; */
+  margin: 1em 2em;
+  list-style-position: outside; }
+
+.re_Write ul {
+  /* margin: 1em 3.2em; */
+  margin: 1em 1.3em;
+  list-style-position: outside; }
+
+.re_Write iframe {
+  display: block; }
+
+.re_Write .insert-wrap {
+  text-align: center;
+}
+
+.box-center {
+    margin: 1em 1.5em;
+    line-height: 1.5em;
+    padding-bottom: 24px;
+}
+
+.box-content {
+    width: 100%;
+    border: 1px solid #E6E6E6;
+}
+
+.box-author-words-title {
+    position: absolute;
+    left:50%;
+    margin-left:-36px;
+}
+
+.box-author-words-title2 {
+    position: absolute;
+    width: 72px;
+    height:22px;
+    top: -8px;
+    border-radius:100px;
+}
+
+.author_words_title {
+    text-align: center;
+    font-family:PingFangSC-Regular;
+    font-size:14px;
+    color:#8592a6;
+    letter-spacing:0;
+    line-height:14px;
+}
+
+.author_avatar {
+    width:64px;
+    height:64px;
+    border-radius:64px;
+    margin-top: 13px;
+}
+
+.author-name {
+    margin-top: 12px;
+    font-family:PingFangSC-Medium;
+    font-size:16px;
+    color:#1f2226;
+    letter-spacing:0;
+    line-height:16px;
+}
+
+.author_words {
+    margin: 1em 1.5em;
+    line-height: 1.5em;
+    margin-top: 14px;
+    opacity:0.79;
+    font-family:PingFangSC-Regular;
+    font-size:14px;
+    color:#525a66;
+    letter-spacing:0;
+    line-height:22px;
+    text-align:justify;
+    word-wrap:break-word;
+    word-break:normal;
+}
+
+/*********** add by gongyong 2017-6-8 ****************/
+
+/********** fonts and themes *************/
+.f10 p, .f10 div, .f10 ul, .f10 ol, .f10 h3, .f10 blockquote {
+    font-size: 10px;
+}
+
+.f10 h3 {
+    font-size: 12px;
+}
+
+.f10 .tinymce-insert-title {
+    font-size: 10px;
+}
+
+.f12 p, .f12 div, .f12 ul, .f12 ol, .f12 h3, .f12 blockquote {
+    font-size: 12px;
+}
+
+.f12 h3 {
+    font-size: 14px;
+}
+
+.f12 .tinymce-insert-title {
+    font-size: 12px;
+}
+
+.f14 p, .f14 div, .f14 ul, .f14 ol, .f14 h3, .f14 blockquote {
+    font-size: 14px;
+}
+.f14 h3 {
+    font-size: 16px;
+}
+.f14 .tinymce-insert-title {
+    font-size: 12px;
+}
+.f16 p, .f16 div, .f16 ul, .f16 ol, .f16 h3, .f16 blockquote {
+    font-size: 16px;
+}
+.f16 h3 {
+    font-size: 18px;
+}
+.f16 .tinymce-insert-title {
+    font-size: 12px;
+}
+.f18 p, .f18 div, .f18 ul, .f18 ol, .f18 h3, .f18 blockquote {
+    font-size: 18px;
+}
+.f18 h3 {
+    font-size: 20px;
+}
+.f18 .tinymce-insert-title {
+    font-size: 16px;
+}
+.f20 p, .f20 div, .f20 ul, .f20 ol, .f20 h3, .f20 blockquote {
+    font-size: 20px;
+}
+.f20 h3 {
+    font-size: 22px;
+}
+.f20 .tinymce-insert-title {
+    font-size: 16px;
+}
+.f22 p, .f22 div, .f22 ul, .f22 ol, .f22 h3, .f22 blockquote {
+    font-size: 22px;
+}
+.f22 h3 {
+    font-size: 24px;
+}
+.f22 .tinymce-insert-title {
+    font-size: 16px;
+}
+
+.dark {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #292D33;
+}
+
+.dark p, .dark div, .dark ul, .dark ol, .dark h3, .dark blockquote {
+    color: #ced2d9;
+}
+
+.dark h3 {
+    color: #ffffff;
+}
+
+.dark blockquote {
+    border-left: 4px solid #8592a6;
+    background-color: rgba(242, 246, 250, 0.1);
+}
+.dark strong {
+    color: #ffffff;
+}
+.blue {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #f5fbff;
+}
+.blue blockquote {
+    border-left: 4px solid #525a66;
+    background-color: rgba(82, 90, 102, 0.1);
+}
+.yellow {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #fff7e3;
+}
+.yellow blockquote {
+    border-left: 4px solid #525a66;
+    background-color: rgba(82, 90, 102, 0.1);
+}
+.green {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #e7f5e5;
+}
+.green blockquote {
+    border-left: 4px solid #525a66;
+    background-color: rgba(82, 90, 102, 0.1);
+}
+.red {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #ffebeb;
+}
+.red blockquote {
+    border-left: 4px solid #525a66;
+    background-color: rgba(82, 90, 102, 0.1);
+}
+.white blockquote {
+    background-color: #f2f6fa;
+}
+
+.dark .box-author-words-title2 {
+     background: #292D33;
+}
+.blue .box-author-words-title2 {
+     background: #f5fbff;
+}
+.yellow .box-author-words-title2 {
+     background: #fff7e3;
+}
+.green .box-author-words-title2 {
+     background: #e7f5e5;
+}
+.red .box-author-words-title2 {
+     background: #ffebeb;
+}
+.white .box-author-words-title2 {
+     background: #ffffff;
+}
+.white {
+    margin: -1em 0;
+    padding: 1em 0 0.01em;
+    background-color: #ffffff;
+}

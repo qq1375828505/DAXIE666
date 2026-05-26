@@ -86,7 +86,7 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
                 ),
                 borderRadius: BorderRadius.circular(12),
                 color: _filePath != null
-                    ? AppColors.primary.withValues(alpha: 0.05)
+                    ? AppColors.primary.withOpacity(0.05)
                     : Colors.grey[50],
               ),
               child: _filePath != null
@@ -129,7 +129,7 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
                     ? Colors.green.shade50
                     : _importResult?.success == false
                         ? Colors.red.shade50
-                        : AppColors.primary.withValues(alpha: 0.05),
+                        : AppColors.primary.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(

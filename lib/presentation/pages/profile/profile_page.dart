@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/core/router.dart';
+import 'package:novel_ide/core/theme/app_themes.dart';
+import 'package:novel_ide/core/theme/skin_provider.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
@@ -125,6 +127,24 @@ class ProfilePage extends ConsumerWidget {
                 ref.read(darkModeProvider.notifier).state = value;
                 ConfigService.isDarkMode = value;
               },
+            ),
+          ),
+          // 主题皮肤选择器
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.palette, size: 24),
+                    const SizedBox(width: 16),
+                    const Text('主题皮肤', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SkinSelector(),
+              ],
             ),
           ),
           ListTile(
@@ -604,6 +624,105 @@ class _AiConfigTile extends ConsumerWidget {
             child: const Text('删除'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 主题皮肤选择器 — 2行4列网格卡片
+class _SkinSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentSkin = ref.watch(skinThemeProvider);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 0.78,
+      ),
+      itemCount: AppSkins.all.length,
+      itemBuilder: (context, index) {
+        final skin = AppSkins.all[index];
+        final isSelected = currentSkin.type == skin.type;
+
+        return GestureDetector(
+          onTap: () {
+            ref.read(skinThemeProvider.notifier).setSkin(skin.type);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: skin.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? skin.primary : Colors.grey.withOpacity(0.3),
+                width: isSelected ? 2.5 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [BoxShadow(color: skin.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 颜色预览条
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _ColorDot(color: skin.primary, size: 14),
+                    const SizedBox(width: 4),
+                    _ColorDot(color: skin.secondary, size: 14),
+                    const SizedBox(width: 4),
+                    _ColorDot(color: skin.background, size: 14),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // 主题名
+                Text(
+                  skin.type.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: skin.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  skin.type.desc,
+                  style: TextStyle(fontSize: 9, color: skin.textSecondary),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(height: 4),
+                  Icon(Icons.check_circle, size: 14, color: skin.primary),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 小色点预览
+class _ColorDot extends StatelessWidget {
+  final Color color;
+  final double size;
+  const _ColorDot({required this.color, this.size = 12});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.withOpacity(0.3), width: 0.5),
       ),
     );
   }

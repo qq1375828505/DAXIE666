@@ -614,17 +614,54 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
             ),
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
+              child: SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   children: [
-                    IconButton(icon: const Icon(Icons.undo, size: 22), onPressed: _undo),
-                    IconButton(icon: const Icon(Icons.redo, size: 22), onPressed: _redo),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.save_alt, size: 22),
-                      tooltip: '保存',
+                    _ToolbarButton(icon: Icons.undo, label: '撤销', onPressed: _undo),
+                    _ToolbarButton(icon: Icons.redo, label: '重做', onPressed: _redo),
+                    _ToolbarButton(
+                      icon: _showFindBar ? Icons.close : Icons.search,
+                      label: '查找',
+                      isActive: _showFindBar,
+                      onPressed: () => setState(() => _showFindBar = !_showFindBar),
+                    ),
+                    _ToolbarButton(
+                      icon: Icons.find_replace,
+                      label: '替换',
+                      onPressed: _showReplaceDialog,
+                    ),
+                    if (isOnline)
+                      _ToolbarButton(
+                        icon: Icons.auto_awesome,
+                        label: 'AI',
+                        color: AppColors.primary,
+                        isActive: _showAiDrawer,
+                        onPressed: () => setState(() => _showAiDrawer = !_showAiDrawer),
+                      ),
+                    _ToolbarButton(
+                      icon: _isListening ? Icons.mic : Icons.mic_none,
+                      label: '语音',
+                      color: _isListening ? Colors.red : null,
+                      isActive: _isListening,
+                      onPressed: _toggleSpeech,
+                    ),
+                    _ToolbarButton(
+                      icon: Icons.text_snippet,
+                      label: '快词',
+                      onPressed: _showQuickWordsSheet,
+                    ),
+                    _ToolbarButton(
+                      icon: Icons.save_alt,
+                      label: '保存',
                       onPressed: _saveChapter,
+                    ),
+                    _ToolbarButton(
+                      icon: Icons.settings,
+                      label: '设置',
+                      onPressed: _showEditorSettingsSheet,
                     ),
                   ],
                 ),
@@ -654,6 +691,190 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   onClose: () => setState(() => _showSearchDrawer = false),
                 )
               : null,
+    );
+  }
+
+  // ==================== 新增辅助方法 ====================
+
+  /// 替换对话框
+  void _showReplaceDialog() {
+    final findCtrl = TextEditingController();
+    final replaceCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('查找替换'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: findCtrl, decoration: const InputDecoration(labelText: '查找内容', isDense: true)),
+            const SizedBox(height: 8),
+            TextField(controller: replaceCtrl, decoration: const InputDecoration(labelText: '替换为', isDense: true)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              final text = _controller.text;
+              final newText = text.replaceAll(findCtrl.text, replaceCtrl.text);
+              if (newText != text) {
+                _recordHistory();
+                _controller.text = newText;
+                _saveChapter();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('已替换 ${findCtrl.text.allMatches(text).length} 处')),
+                  );
+                }
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('全部替换'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 快捷短语底部弹窗
+  void _showQuickWordsSheet() {
+    final quickWords = ['……', '——', '………', '「」', '『』', '【】', '（）', '：', '；', '，', '。', '！', '？', '……。', '——！'];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('快捷短语', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: quickWords.map((w) => ActionChip(
+                label: Text(w, style: const TextStyle(fontSize: 16)),
+                onPressed: () {
+                  final sel = _controller.selection;
+                  final text = _controller.text;
+                  final newText = text.replaceRange(sel.start, sel.end, w);
+                  _controller.text = newText;
+                  _controller.selection = TextSelection.collapsed(offset: sel.start + w.length);
+                  Navigator.pop(ctx);
+                },
+              )).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 编辑器设置底部弹窗
+  void _showEditorSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.format_size),
+              title: const Text('字体大小'),
+              subtitle: const Text('调整编辑器字号'),
+              onTap: () {
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.format_line_spacing),
+              title: const Text('行高'),
+              subtitle: const Text('调整行间距'),
+              onTap: () {
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: const Text('全局搜索'),
+              subtitle: const Text('跨章节搜索替换'),
+              onTap: () {
+                Navigator.pop(ctx);
+                final novel = ref.read(selectedNovelProvider);
+                if (novel != null) {
+                  Navigator.pushNamed(context, '/global-search',
+                    arguments: {'novelId': novel.id, 'novelTitle': novel.title});
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.psychology),
+              title: const Text('设定提醒'),
+              subtitle: const Text('检查设定冲突'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => SettingReminderPage(
+                    novelId: widget.novelId,
+                    editorController: _controller,
+                  )));
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 自定义快捷操作栏按钮组件
+class _ToolbarButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final bool isActive;
+
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+    this.color,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = isActive
+        ? (color ?? Theme.of(context).colorScheme.primary)
+        : (color ?? Colors.grey[600]);
+
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: effectiveColor),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: effectiveColor,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

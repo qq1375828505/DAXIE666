@@ -13,6 +13,7 @@ import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
+import 'package:novel_ide/data/services/epub_export_service.dart';
 
 /// Export page - supports selective or full export as TXT.
 class ExportPage extends StatefulWidget {
@@ -361,6 +362,44 @@ class _ExportPageState extends State<ExportPage> {
     }
   }
 
+  /// EPUB 格式导出
+  Future<void> _doEpubExport() async {
+    setState(() {});
+    try {
+      final selectedIds = _selectedChapterIds.toSet();
+      final service = EpubExportService();
+      final epubPath = await service.exportNovel(
+        novelId: widget.novelId,
+        novelTitle: widget.novelTitle,
+        selectedChapterIds: selectedIds,
+      );
+
+      // 保存到本地
+      final epubBytes = await File(epubPath).readAsBytes();
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: '保存 EPUB 文件',
+        fileName: '${widget.novelTitle}.epub',
+        type: FileType.custom,
+        allowedExtensions: ['epub'],
+        bytes: Uint8List.fromList(epubBytes),
+      );
+
+      if (outputPath != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('EPUB 已保存到: $outputPath')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('EPUB 导出失败: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -573,6 +612,36 @@ class _ExportPageState extends State<ExportPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
+
+                const Divider(height: 32),
+                // --- EPUB 导出 ---
+                _SectionHeader(title: 'EPUB 电子书导出'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      Text(
+                        '导出为标准 EPUB 3.0 格式，可用 Calibre、Apple Books、Kindle 等阅读器打开',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.menu_book),
+                          label: Text('导出为 EPUB (${_selectedChapterIds.length}章)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepOrange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: _isLoadingChapters ? null : () => _doEpubExport(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
               ],
             ),
     );
