@@ -14,6 +14,21 @@ import 'package:novel_ide/data/services/model_test_service.dart';
 import 'package:novel_ide/presentation/pages/profile/app_config_page.dart';
 import 'package:novel_ide/presentation/pages/profile/user_memory_page.dart';
 
+/// 自动补全 API 地址
+/// 用户可能只填域名（如 https://api.deepseek.com），
+/// 自动补全为完整路径（如 https://api.deepseek.com/v1/chat/completions）
+String _normalizeApiUrl(String url) {
+  url = url.trim();
+  if (url.isEmpty) return url;
+  // 已经包含 /chat/completions，直接返回
+  if (url.contains('/chat/completions')) return url;
+  // 已经以 /v1 结尾，补全
+  if (url.endsWith('/v1')) return '$url/chat/completions';
+  // 没有尾部斜杠，补上
+  if (!url.endsWith('/')) url = '$url/';
+  return '${url}v1/chat/completions';
+}
+
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
@@ -330,7 +345,7 @@ class ProfilePage extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称', hintText: '例如：DeepSeek / Claude')),
                 const SizedBox(height: 12),
-                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址')),
+                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com')),
                 const SizedBox(height: 12),
                 // Model field
                 TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型名', hintText: '例如：gpt-4o / claude-sonnet-4-20250514')),
@@ -351,7 +366,7 @@ class ProfilePage extends ConsumerWidget {
                       try {
                         final tempConfig = AiConfig(
                           id: 'temp', name: 'temp',
-                          apiUrl: urlCtrl.text, modelName: modelCtrl.text,
+                          apiUrl: _normalizeApiUrl(urlCtrl.text), modelName: modelCtrl.text,
                           apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
                           protocol: selectedProtocol,
                         );
@@ -413,7 +428,7 @@ class ProfilePage extends ConsumerWidget {
                       try {
                         final tempConfig = AiConfig(
                           id: 'temp', name: 'temp',
-                          apiUrl: urlCtrl.text, modelName: modelCtrl.text,
+                          apiUrl: _normalizeApiUrl(urlCtrl.text), modelName: modelCtrl.text,
                           apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
                           protocol: selectedProtocol,
                         );
@@ -446,7 +461,7 @@ class ProfilePage extends ConsumerWidget {
                 final config = AiConfig(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   name: nameCtrl.text.trim(),
-                  apiUrl: urlCtrl.text.trim(),
+                  apiUrl: _normalizeApiUrl(urlCtrl.text),
                   modelName: modelCtrl.text.trim(),
                   protocol: selectedProtocol,
                 );
