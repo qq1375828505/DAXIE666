@@ -7,6 +7,7 @@ import 'package:novel_ide/data/models/search_result_model.dart';
 import 'package:novel_ide/data/models/material_models.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:uuid/uuid.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class SearchDrawer extends ConsumerStatefulWidget {
   final String novelId;
@@ -172,7 +173,7 @@ class _SearchDrawerState extends ConsumerState<SearchDrawer> {
                         onSelected: (action) async {
                           if (action == 'copy') {
                             Clipboard.setData(ClipboardData(text: '${result.title}\n${result.url}'));
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
+                            TopNotification.success(context, '已复制');
                           } else if (action == 'save') {
                             // Save to reference library
                             final refMaterial = ReferenceMaterial(
@@ -189,7 +190,7 @@ class _SearchDrawerState extends ConsumerState<SearchDrawer> {
                             final updated = [...existing, refMaterial];
                             await repo.saveReferences(widget.novelId, updated);
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存到参考资料库')));
+                              TopNotification.success(context, '已保存到参考资料库');
                             }
                           } else if (action == 'insert') {
                             // Insert citation into editor
@@ -197,7 +198,7 @@ class _SearchDrawerState extends ConsumerState<SearchDrawer> {
                             Clipboard.setData(ClipboardData(text: text));
                             widget.onClose();
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('引用已复制，粘贴到编辑器')));
+                              TopNotification.success(context, '引用已复制，粘贴到编辑器');
                             }
                           }
                         },

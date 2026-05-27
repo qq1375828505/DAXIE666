@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/services/user_memory.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// 用户全局记忆编辑页面
 /// 用户可自由编辑自己的偏好、习惯、常用指令

@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart';
 import 'package:novel_ide/presentation/pages/profile/profile_page.dart';
 import 'package:path/path.dart' as p;
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class WorksPage extends ConsumerWidget {
   const WorksPage({super.key});

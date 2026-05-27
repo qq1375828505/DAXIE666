@@ -8,6 +8,7 @@ import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/user_memory.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// AI chat session model.
 class AiChatSession {

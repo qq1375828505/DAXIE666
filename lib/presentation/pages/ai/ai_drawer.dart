@@ -10,6 +10,7 @@ import 'package:novel_ide/presentation/pages/tomato/title_generator_result_page.
 import 'package:novel_ide/presentation/pages/ai/full_text_review_page.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/user_memory.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class AiDrawer extends ConsumerStatefulWidget {
   final String novelId;
@@ -110,16 +111,16 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
   Future<void> _runShuangdianCheck() async {
     final config = ref.read(selectedAiConfigProvider);
     if (config == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先配置AI模型')));
+      TopNotification.success(context, '请先配置AI模型');
       return;
     }
     final content = widget.controller.text;
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入章节内容')));
+      TopNotification.success(context, '请先输入章节内容');
       return;
     }
     widget.onClose();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在分析爽点...'), duration: Duration(seconds: 3)));
+    TopNotification.success(context, '正在分析爽点...');
     try {
       final aiService = ref.read(aiServiceProvider);
       final response = await aiService.send(
@@ -134,23 +135,23 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
         ));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分析失败: $e')));
+      if (mounted) TopNotification.success(context, '分析失败: $e');
     }
   }
 
   Future<void> _runWaterCheck() async {
     final config = ref.read(selectedAiConfigProvider);
     if (config == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先配置AI模型')));
+      TopNotification.success(context, '请先配置AI模型');
       return;
     }
     final content = widget.controller.text;
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入章节内容')));
+      TopNotification.success(context, '请先输入章节内容');
       return;
     }
     widget.onClose();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在检测水文...'), duration: Duration(seconds: 3)));
+    TopNotification.success(context, '正在检测水文...');
     try {
       final aiService = ref.read(aiServiceProvider);
       final response = await aiService.send(
@@ -165,19 +166,19 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
         ));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('检测失败: $e')));
+      if (mounted) TopNotification.success(context, '检测失败: $e');
     }
   }
 
   Future<void> _runTitleGeneration() async {
     final config = ref.read(selectedAiConfigProvider);
     if (config == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先配置AI模型')));
+      TopNotification.success(context, '请先配置AI模型');
       return;
     }
     final content = widget.controller.text;
     widget.onClose();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在生成标题...'), duration: Duration(seconds: 3)));
+    TopNotification.success(context, '正在生成标题...');
     try {
       final aiService = ref.read(aiServiceProvider);
       final response = await aiService.send(
@@ -192,7 +193,7 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
         ));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('生成失败: $e')));
+      if (mounted) TopNotification.success(context, '生成失败: $e');
     }
   }
 

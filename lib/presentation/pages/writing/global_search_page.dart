@@ -5,6 +5,7 @@ import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:path/path.dart' as p;
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// 跨章节全局搜索替换页面
 class GlobalSearchPage extends ConsumerStatefulWidget {

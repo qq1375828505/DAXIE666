@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:novel_ide/core/constants.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// 标题生成结果页
 class TitleGeneratorResultPage extends StatelessWidget {

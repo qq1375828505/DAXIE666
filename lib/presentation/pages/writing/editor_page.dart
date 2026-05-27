@@ -18,6 +18,7 @@ import 'package:novel_ide/presentation/pages/tomato/style_selector_bar.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:intl/intl.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class EditorPage extends ConsumerStatefulWidget {
   final String novelId;

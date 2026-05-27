@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class PolishEnginePage extends ConsumerStatefulWidget {
   final String chapterContent;

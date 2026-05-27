@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/services/proofread_service.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// 全文校对页面
 class ProofreadPage extends StatefulWidget {

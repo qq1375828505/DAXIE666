@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// 基于 WebView 的富文本编辑器页面
 /// 复用起点作家的 rich_editor.js + WeReadApi.js

@@ -4,6 +4,7 @@ import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// Full-text review page - scans all chapters for consistency issues.
 class FullTextReviewPage extends ConsumerStatefulWidget {
@@ -31,7 +32,7 @@ class _FullTextReviewPageState extends ConsumerState<FullTextReviewPage> {
   Future<void> _runReview() async {
     final config = ref.read(selectedAiConfigProvider);
     if (config == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先配置AI模型')));
+      TopNotification.success(context, '请先配置AI模型');
       return;
     }
 

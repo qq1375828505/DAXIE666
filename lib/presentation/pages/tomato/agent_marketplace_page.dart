@@ -8,6 +8,7 @@ import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/tomato_agent_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 class AgentMarketplacePage extends ConsumerStatefulWidget {
   const AgentMarketplacePage({super.key});
@@ -250,7 +251,7 @@ class _CustomAgentsViewState extends ConsumerState<_CustomAgentsView> {
   void _runAgent(TomatoAgent agent) {
     final config = ref.read(selectedAiConfigProvider);
     if (config == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先配置AI模型')));
+      TopNotification.success(context, '请先配置AI模型');
       return;
     }
     Navigator.push(context, MaterialPageRoute(

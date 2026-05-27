@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/services/app_config.dart';
+import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// App configuration viewer and editor page.
 class AppConfigPage extends StatefulWidget {
@@ -92,7 +93,7 @@ class _AppConfigPageState extends State<AppConfigPage> {
         actions: [
           IconButton(icon: const Icon(Icons.copy, size: 20), tooltip: '复制', onPressed: () {
             Clipboard.setData(ClipboardData(text: _ctrl.text));
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
+            TopNotification.success(context, '已复制');
           }),
           IconButton(icon: const Icon(Icons.refresh, size: 20), tooltip: '重载', onPressed: _loadConfig),
         ],
