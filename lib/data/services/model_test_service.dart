@@ -5,11 +5,37 @@ import 'package:novel_ide/data/models/ai_config_model.dart';
 class ModelTestService {
   final Dio _dio = Dio();
 
+  /// 智能补全 API 地址（兼容旧配置）
+  String _normalizeApiUrl(String url, ApiProtocol protocol) {
+    url = url.trim();
+    if (url.isEmpty) return url;
+
+    // 已经是完整路径，直接返回
+    if (url.contains('/chat/completions')) return url;
+    if (url.contains('/v1/messages')) return url;
+
+    // Anthropic 协议特殊处理
+    if (protocol == ApiProtocol.anthropic) {
+      if (url.endsWith('/anthropic')) return '$url/v1/messages';
+      if (url.endsWith('/v1')) return '$url/messages';
+      if (!url.endsWith('/')) url = '$url/';
+      return '${url}v1/messages';
+    }
+
+    // OpenAI 兼容协议
+    if (url.endsWith('/v1')) return '$url/chat/completions';
+    if (!url.endsWith('/')) url = '$url/';
+    return '${url}v1/chat/completions';
+  }
+
   /// Test connection to the API. Returns success message or throws error.
   Future<String> testConnection(AiConfig config) async {
+    // 兼容旧配置：确保 URL 已补全
+    final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
+
     try {
       final response = await _dio.post(
-        config.apiUrl,
+        normalizedUrl,
         options: Options(
           headers: _buildHeaders(config),
           sendTimeout: const Duration(seconds: 15),
@@ -43,9 +69,12 @@ class ModelTestService {
 
   /// Fetch available model list from the API.
   Future<List<String>> fetchModels(AiConfig config) async {
+    // 兼容旧配置：确保 URL 已补全
+    final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
+
     try {
       // Try OpenAI-compatible /models endpoint
-      final modelsUrl = config.apiUrl.replaceAll(RegExp(r'/chat/completions.*'), '') + '/models';
+      final modelsUrl = normalizedUrl.replaceAll(RegExp(r'/chat/completions.*'), '') + '/models';
       final response = await _dio.get(
         modelsUrl,
         options: Options(

@@ -495,6 +495,108 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
+  void _showEditAiConfigDialog(BuildContext context, WidgetRef ref, AiConfig config) {
+    final nameCtrl = TextEditingController(text: config.name);
+    final urlCtrl = TextEditingController(text: config.apiUrl);
+    final modelCtrl = TextEditingController(text: config.modelName);
+    final keyCtrl = TextEditingController();
+    ApiProtocol selectedProtocol = config.protocol;
+    bool isTesting = false;
+
+    // 加载已保存的 API Key
+    SecureStorageDataSource().readApiKey(config.id).then((key) {
+      if (key != null) keyCtrl.text = key;
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('编辑AI模型'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Protocol selector (disabled for edit)
+                const Text('API 协议', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                SegmentedButton<ApiProtocol>(
+                  segments: const [
+                    ButtonSegment(value: ApiProtocol.openaiCompatible, label: Text('OpenAI 兼容'), icon: Icon(Icons.language, size: 16)),
+                    ButtonSegment(value: ApiProtocol.anthropic, label: Text('Anthropic'), icon: Icon(Icons.smart_toy, size: 16)),
+                  ],
+                  selected: {selectedProtocol},
+                  onSelectionChanged: (sel) {
+                    selectedProtocol = sel.first;
+                    setDialogState(() {});
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称')),
+                const SizedBox(height: 12),
+                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com')),
+                const SizedBox(height: 12),
+                TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型名')),
+                const SizedBox(height: 12),
+                TextField(controller: keyCtrl, decoration: const InputDecoration(labelText: 'API Key', hintText: '留空则保持不变'), obscureText: true),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            OutlinedButton(
+              onPressed: isTesting ? null : () async {
+                setDialogState(() => isTesting = true);
+                try {
+                  final testConfig = AiConfig(
+                    id: config.id, name: nameCtrl.text,
+                    apiUrl: _normalizeApiUrl(urlCtrl.text, selectedProtocol), modelName: modelCtrl.text,
+                    apiKey: keyCtrl.text.isNotEmpty ? keyCtrl.text : null,
+                    protocol: selectedProtocol,
+                  );
+                  final result = await ModelTestService().testConnection(testConfig);
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+                  }
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                  }
+                }
+                setDialogState(() => isTesting = false);
+              },
+              child: Text(isTesting ? '测试中...' : '测试连接'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final updatedConfig = AiConfig(
+                  id: config.id,
+                  name: nameCtrl.text,
+                  apiUrl: _normalizeApiUrl(urlCtrl.text, selectedProtocol),
+                  modelName: modelCtrl.text,
+                  protocol: selectedProtocol,
+                );
+                if (keyCtrl.text.isNotEmpty) {
+                  await SecureStorageDataSource().writeApiKey(config.id, keyCtrl.text.trim());
+                }
+                await DatabaseHelper().insertAiConfig(DatabaseHelper().toDbMap(updatedConfig));
+                final currentList = ref.read(aiConfigsProvider);
+                final newList = currentList.map((c) => c.id == config.id ? updatedConfig : c).toList();
+                ref.read(aiConfigsProvider.notifier).state = newList;
+                if (ref.read(selectedAiConfigProvider)?.id == config.id) {
+                  ref.read(selectedAiConfigProvider.notifier).state = updatedConfig;
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showClearDataDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -628,8 +730,7 @@ class _AiConfigTile extends ConsumerWidget {
                 } else if (value == 'delete') {
                   _showDeleteConfirm(context, ref, config);
                 } else if (value == 'edit') {
-                  // TODO: 编辑功能可以后续实现
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('编辑功能开发中')));
+                  _showEditAiConfigDialog(context, ref, config);
                 }
               },
             ),
