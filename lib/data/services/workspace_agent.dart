@@ -250,6 +250,9 @@ class WorkspaceAgent {
     _executors[toolName] = executor;
   }
 
+  /// 获取工具执行器
+  ToolExecutor? getExecutor(String toolName) => _executors[toolName];
+
   /// 发送Agent请求（带function calling）
   Future<AgentResponse> chat({
     required AiConfig config,

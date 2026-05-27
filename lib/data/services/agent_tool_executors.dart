@@ -8,6 +8,7 @@ import 'package:novel_ide/data/repositories/skill_repository.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/workspace_agent.dart';
+import 'package:novel_ide/data/services/workflow_engine.dart';
 import 'package:uuid/uuid.dart';
 
 /// 注册所有Agent工具执行器
@@ -269,7 +270,7 @@ void registerAllToolExecutors({
     return ToolResult(toolName: 'add_skill', success: true, message: '已添加技能：$name');
   });
 
-  // ====== 子代理和工作流（占位，后续实现） ======
+  // ====== 子代理和工作流 ======
 
   agent.registerExecutor('delegate_to_sub_agent', (args) async {
     final taskType = args['task_type'] as String? ?? '';
@@ -283,10 +284,35 @@ void registerAllToolExecutors({
 
   agent.registerExecutor('run_workflow', (args) async {
     final workflowName = args['workflow_name'] as String? ?? '';
+    final workflow = WorkflowPresets.all.where((w) => w.id == workflowName).firstOrNull;
+    if (workflow == null) {
+      return ToolResult(
+        toolName: 'run_workflow',
+        success: false,
+        message: '未找到工作流：$workflowName\n可用工作流：${WorkflowPresets.all.map((w) => w.id).join(', ')}',
+      );
+    }
+
+    // 依次执行工作流步骤
+    final results = <String>[];
+    for (final step in workflow.steps) {
+      final executor = agent.getExecutor(step.toolName);
+      if (executor != null) {
+        try {
+          final result = await executor(step.toolArgs);
+          results.add('✅ ${step.name}：${result.message}');
+        } catch (e) {
+          results.add('❌ ${step.name}：执行失败 $e');
+        }
+      } else {
+        results.add('⚠️ ${step.name}：工具未注册');
+      }
+    }
+
     return ToolResult(
       toolName: 'run_workflow',
       success: true,
-      message: '工作流「$workflowName」已触发，正在执行...',
+      message: '工作流「${workflow.name}」执行完成：\n\n${results.join('\n')}',
     );
   });
 }

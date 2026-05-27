@@ -10,6 +10,7 @@ import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/user_memory.dart';
 import 'package:novel_ide/data/services/workspace_agent.dart';
 import 'package:novel_ide/data/services/agent_tool_executors.dart';
+import 'package:novel_ide/data/services/workflow_engine.dart';
 import 'package:novel_ide/presentation/widgets/top_notification.dart';
 
 /// AI chat session model.
@@ -378,6 +379,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           _QuickAction(label: '大纲生成', onTap: () { _inputCtrl.text = '帮我写一个小说大纲'; _sendMessage(); }),
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      // Workflow quick actions
+                      Text('自动化工作流', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: WorkflowPresets.all.map((w) => _QuickAction(
+                          label: '${w.icon} ${w.name}',
+                          onTap: () => _runWorkflow(w),
+                        )).toList(),
+                      ),
                     ],
                   ),
                 )
@@ -672,6 +686,73 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           'role': 'assistant',
           'content': '【${agent.name}】调用失败: $e',
         });
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// 执行工作流
+  Future<void> _runWorkflow(Workflow workflow) async {
+    final config = ref.read(selectedAiConfigProvider);
+    if (config == null) {
+      TopNotification.error(context, '请先在"我的"页面配置AI模型');
+      return;
+    }
+
+    final novel = ref.read(selectedNovelProvider);
+    if (novel == null) {
+      TopNotification.error(context, '请先选择一部小说');
+      return;
+    }
+
+    if (_currentSession == null) _newSession();
+
+    setState(() {
+      _currentSession!.messages.add({'role': 'user', 'content': '${workflow.icon} 执行工作流：${workflow.name}'});
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final agent = WorkspaceAgent();
+      registerAllToolExecutors(agent: agent, novelId: novel.id, novelTitle: novel.title);
+
+      // 依次执行工作流步骤
+      final results = <String>[];
+      for (final step in workflow.steps) {
+        final executor = agent.getExecutor(step.toolName);
+        if (executor != null) {
+          try {
+            final result = await executor(step.toolArgs);
+            results.add('${result.success ? "✅" : "❌"} **${step.name}**：${result.message}');
+          } catch (e) {
+            results.add('❌ **${step.name}**：执行失败 $e');
+          }
+        } else {
+          results.add('⚠️ **${step.name}**：工具未注册');
+        }
+      }
+
+      // 让AI总结工作流结果
+      final aiService = ref.read(aiServiceProvider);
+      final summary = await aiService.send(
+        config: config,
+        systemPrompt: '你是一个写作助手。请根据以下工作流执行结果，给用户一个简洁友好的总结和建议。',
+        userMessage: '工作流「${workflow.name}」执行结果：\n${results.join("\n")}',
+        taskType: 'workflow',
+      );
+
+      setState(() {
+        _currentSession!.messages.add({
+          'role': 'assistant',
+          'content': '${workflow.icon} **${workflow.name}** 执行完成\n\n${results.join("\n")}\n\n---\n**AI总结：**\n$summary',
+        });
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _currentSession!.messages.add({'role': 'assistant', 'content': '工作流执行失败: $e'});
         _isLoading = false;
       });
     }
