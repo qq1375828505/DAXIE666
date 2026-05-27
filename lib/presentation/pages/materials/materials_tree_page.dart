@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/material_models.dart';
+import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
+import 'package:novel_ide/data/services/outline_generator_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:novel_ide/presentation/widgets/file_tree_view.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart';
@@ -23,6 +25,9 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
   // 记忆包内容
   String _memoryContent = '';
   bool _isLoadingMemory = true;
+  // AI大纲生成
+  bool _isGeneratingOutline = false;
+  List<OutlineNode> _outlineNodes = [];
 
   @override
   void initState() {
@@ -76,6 +81,13 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
       appBar: AppBar(
         title: Text('${selectedNovel.title} · 资料库'),
         actions: [
+          IconButton(
+            icon: _isGeneratingOutline
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.auto_awesome),
+            tooltip: 'AI生成大纲',
+            onPressed: _isGeneratingOutline ? null : () => _generateOutline(selectedNovel.id),
+          ),
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
             tooltip: '打包',
@@ -230,6 +242,15 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
           fileType: 'md',
         )).toList(),
       ),
+      // AI生成的大纲
+      if (_outlineNodes.isNotEmpty)
+        FileTreeNode(
+          id: 'folder_outline',
+          name: 'AI大纲 (${_outlineNodes.length}卷)',
+          isFolder: true,
+          isExpanded: _expandedNodes.contains('大纲'),
+          children: _outlineNodesToTreeNodes(_outlineNodes),
+        ),
       // 记忆包
       FileTreeNode(
         id: 'folder_memory',
@@ -314,6 +335,85 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     if (r.source != null) buffer.writeln('\n**来源**: ${r.source}');
     if (r.sourceUrl != null) buffer.writeln('\n**链接**: ${r.sourceUrl}');
     return buffer.toString();
+  }
+
+  /// AI生成大纲
+  Future<void> _generateOutline(String novelId) async {
+    // 获取AI配置
+    final configs = ref.read(aiConfigsProvider);
+    if (configs.isEmpty) {
+      _showTopMsg('请先在"我的"页面配置AI模型', isError: true);
+      return;
+    }
+    final aiConfig = configs.first;
+
+    // 获取章节
+    List<Chapter> chapters;
+    try {
+      chapters = await ref.read(chapterRepoProvider).getChaptersByNovel(novelId);
+    } catch (e) {
+      _showTopMsg('获取章节失败: $e', isError: true);
+      return;
+    }
+
+    if (chapters.isEmpty) {
+      _showTopMsg('没有可分析的章节，请先写一些内容', isError: true);
+      return;
+    }
+
+    setState(() => _isGeneratingOutline = true);
+
+    try {
+      final service = OutlineGeneratorService();
+      final outline = await service.generateOutline(
+        chapters: chapters,
+        aiConfig: aiConfig,
+      );
+      if (mounted) {
+        setState(() {
+          _outlineNodes = outline;
+          _isGeneratingOutline = false;
+          _expandedNodes.add('大纲');
+        });
+        _showTopMsg('大纲生成成功，共${outline.length}卷');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGeneratingOutline = false);
+        _showTopMsg('生成失败: $e', isError: true);
+      }
+    }
+  }
+
+  /// 将OutlineNode转为FileTreeNode
+  List<FileTreeNode> _outlineNodesToTreeNodes(List<OutlineNode> nodes, {int depth = 0}) {
+    return nodes.map((node) {
+      final hasChildren = node.children.isNotEmpty;
+      final buffer = StringBuffer();
+      buffer.writeln('# ${node.title}');
+      if (node.summary != null) buffer.writeln('\n${node.summary}');
+      final content = buffer.toString();
+
+      return FileTreeNode(
+        id: '${node.nodeType}_${node.title}',
+        name: node.title,
+        content: content,
+        isFolder: hasChildren,
+        isExpanded: depth < 1,
+        fileType: hasChildren ? null : 'md',
+        children: hasChildren
+            ? _outlineNodesToTreeNodes(node.children, depth: depth + 1)
+            : [],
+      );
+    }).toList();
+  }
+
+  /// 顶部提示
+  void _showTopMsg(String message, {bool isError = false}) {
+    final color = isError ? Colors.red : Colors.green;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
   }
 
   void _showContentPreview(FileTreeNode node) {
