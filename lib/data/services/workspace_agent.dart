@@ -55,6 +55,7 @@ class WorkspaceAgent {
 
   /// 所有可用工具
   static final List<AgentTool> tools = [
+    // ====== 读取类工具 ======
     AgentTool(
       name: 'get_novel_info',
       description: '获取当前小说的基本信息，包括标题、简介、章节数等',
@@ -64,51 +65,28 @@ class WorkspaceAgent {
       description: '获取小说的所有角色列表，包括名称、定位、描述',
     ),
     AgentTool(
-      name: 'add_character',
-      description: '添加一个新角色到资料库',
-      parameters: {
-        'name': '角色名称',
-        'role': '角色定位（如：主角/反派/配角）',
-        'description': '角色描述（外貌、性格、背景等）',
-      },
-    ),
-    AgentTool(
       name: 'get_settings',
       description: '获取小说的所有设定卡，包括世界观、战力体系等',
-    ),
-    AgentTool(
-      name: 'add_setting',
-      description: '添加一个新设定到资料库',
-      parameters: {
-        'name': '设定名称',
-        'category': '分类（如：世界观/战力/势力）',
-        'description': '设定描述',
-      },
     ),
     AgentTool(
       name: 'get_locations',
       description: '获取小说的所有地点',
     ),
     AgentTool(
-      name: 'add_location',
-      description: '添加一个新地点到资料库',
-      parameters: {
-        'name': '地点名称',
-        'category': '分类（如：宗门/城市/秘境）',
-        'description': '地点描述',
-      },
+      name: 'get_factions',
+      description: '获取小说的所有势力/组织',
+    ),
+    AgentTool(
+      name: 'get_items',
+      description: '获取小说的所有道具/物品',
     ),
     AgentTool(
       name: 'get_hooks',
       description: '获取小说的所有伏笔，包括状态（已埋/已收/闲置）',
     ),
     AgentTool(
-      name: 'add_hook',
-      description: '添加一个新伏笔',
-      parameters: {
-        'title': '伏笔标题',
-        'description': '伏笔描述',
-      },
+      name: 'get_references',
+      description: '获取小说的所有参考资料',
     ),
     AgentTool(
       name: 'get_chapters',
@@ -124,6 +102,127 @@ class WorkspaceAgent {
     AgentTool(
       name: 'get_memory',
       description: '获取小说的记忆包内容（AI自动生成的小说状态摘要）',
+    ),
+
+    // ====== 写入类工具 ======
+    AgentTool(
+      name: 'add_character',
+      description: '添加一个新角色到资料库',
+      parameters: {
+        'name': '角色名称',
+        'role': '角色定位（如：主角/反派/配角）',
+        'description': '角色描述（外貌、性格、背景等）',
+      },
+    ),
+    AgentTool(
+      name: 'add_setting',
+      description: '添加一个新设定到资料库',
+      parameters: {
+        'name': '设定名称',
+        'category': '分类（如：世界观/战力/势力）',
+        'description': '设定描述',
+      },
+    ),
+    AgentTool(
+      name: 'add_location',
+      description: '添加一个新地点到资料库',
+      parameters: {
+        'name': '地点名称',
+        'category': '分类（如：宗门/城市/秘境）',
+        'description': '地点描述',
+      },
+    ),
+    AgentTool(
+      name: 'add_faction',
+      description: '添加一个新势力/组织到资料库',
+      parameters: {
+        'name': '势力名称',
+        'category': '分类（如：正道/魔道/中立）',
+        'description': '势力描述',
+        'leader': '首领名称（可选）',
+      },
+    ),
+    AgentTool(
+      name: 'add_item',
+      description: '添加一个新道具/物品到资料库',
+      parameters: {
+        'name': '道具名称',
+        'category': '分类（如：武器/丹药/法宝）',
+        'description': '道具描述',
+      },
+    ),
+    AgentTool(
+      name: 'add_hook',
+      description: '添加一个新伏笔',
+      parameters: {
+        'title': '伏笔标题',
+        'description': '伏笔描述',
+      },
+    ),
+    AgentTool(
+      name: 'add_reference',
+      description: '添加一条参考资料',
+      parameters: {
+        'title': '参考标题',
+        'content': '参考内容',
+      },
+    ),
+
+    // ====== 编辑类工具 ======
+    AgentTool(
+      name: 'update_character',
+      description: '更新已有角色的信息',
+      parameters: {
+        'name': '要更新的角色名称',
+        'role': '新的角色定位（可选）',
+        'description': '新的角色描述（可选）',
+      },
+    ),
+    AgentTool(
+      name: 'update_hook_status',
+      description: '更新伏笔状态',
+      parameters: {
+        'title': '伏笔标题',
+        'status': '新状态：planted（已埋）/ resolved（已收）/ idle（闲置）',
+      },
+    ),
+
+    // ====== 分析类工具 ======
+    AgentTool(
+      name: 'analyze_plot_consistency',
+      description: '分析当前小说的剧情一致性，检查设定矛盾、角色行为不一致等问题',
+    ),
+    AgentTool(
+      name: 'check_idle_hooks',
+      description: '检查闲置伏笔（已埋但超过3章未回收的伏笔）',
+    ),
+    AgentTool(
+      name: 'generate_chapter_outline',
+      description: '根据当前剧情和设定，生成下一章的写作大纲',
+      parameters: {
+        'direction': '写作方向或要求（可选）',
+      },
+    ),
+    AgentTool(
+      name: 'character_relationship_map',
+      description: '分析并输出当前所有角色之间的关系图谱',
+    ),
+
+    // ====== 子代理工具 ======
+    AgentTool(
+      name: 'delegate_to_sub_agent',
+      description: '将复杂任务委派给子代理执行。子代理是专门处理特定任务的AI助手，可以独立思考和调用工具。',
+      parameters: {
+        'task_type': '子代理类型：outline_editor（大纲编辑）/ continuity_checker（连续性检查）/ character_analyst（角色分析师）/ pacing_advisor（节奏顾问）',
+        'instruction': '给子代理的具体指令',
+      },
+    ),
+    AgentTool(
+      name: 'run_workflow',
+      description: '触发一个预定义的自动化工作流',
+      parameters: {
+        'workflow_name': '工作流名称：post_chapter_check（章节检查）/ full_review（全文审查）/ outline_refresh（大纲刷新）',
+      },
     ),
   ];
 
