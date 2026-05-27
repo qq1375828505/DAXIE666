@@ -113,6 +113,7 @@ class ModelTestService {
     }
     return {
       'Authorization': 'Bearer ${config.apiKey ?? ''}',
+      'api-key': config.apiKey ?? '',  // 兼容小米 MiMo 等使用 api-key 头的服务
       'Content-Type': 'application/json',
     };
   }

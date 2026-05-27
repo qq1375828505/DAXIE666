@@ -37,25 +37,45 @@ class AiService {
     // 兼容旧配置：确保 URL 已补全
     final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
 
-    final response = await _dio.post(
-      normalizedUrl,
-      options: Options(headers: _buildHeaders(config)),
-      data: _buildPayload(config, messages),
-    );
+    try {
+      final response = await _dio.post(
+        normalizedUrl,
+        options: Options(headers: _buildHeaders(config)),
+        data: _buildPayload(config, messages),
+      );
 
-    final content = _parseResponse(config, response);
+      final content = _parseResponse(config, response);
 
-    // Track usage
-    final usage = response.data['usage'];
-    final tokenCount = (usage?['total_tokens'] as int?) ?? content.length ~/ 2;
-    _costTracker.recordUsage(
-      configId: config.id,
-      model: config.modelName,
-      taskType: taskType,
-      tokenCount: tokenCount,
-    );
+      // Track usage
+      final usage = response.data['usage'];
+      final tokenCount = (usage?['total_tokens'] as int?) ?? content.length ~/ 2;
+      _costTracker.recordUsage(
+        configId: config.id,
+        model: config.modelName,
+        taskType: taskType,
+        tokenCount: tokenCount,
+      );
 
-    return content;
+      return content;
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401) {
+        throw Exception('API Key 无效或认证失败 (401)，请检查API Key是否正确');
+      }
+      if (statusCode == 403) {
+        throw Exception('API Key 无权限访问该资源 (403)');
+      }
+      if (statusCode == 404) {
+        throw Exception('API地址错误 (404)，请检查URL配置');
+      }
+      if (statusCode == 429) {
+        throw Exception('请求频率超限 (429)，请稍后再试');
+      }
+      if (statusCode == 402) {
+        throw Exception('API 余额不足 (402)，请充值后重试');
+      }
+      throw Exception('请求失败: ${e.message}');
+    }
   }
 
   Map<String, String> _buildHeaders(AiConfig config) {
@@ -68,6 +88,7 @@ class AiService {
     }
     return {
       'Authorization': 'Bearer ${config.apiKey ?? ''}',
+      'api-key': config.apiKey ?? '',  // 兼容小米 MiMo 等使用 api-key 头的服务
       'Content-Type': 'application/json',
     };
   }
