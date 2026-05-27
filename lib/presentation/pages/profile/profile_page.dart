@@ -14,6 +14,17 @@ import 'package:novel_ide/data/services/model_test_service.dart';
 import 'package:novel_ide/presentation/pages/profile/app_config_page.dart';
 import 'package:novel_ide/presentation/pages/profile/user_memory_page.dart';
 
+/// 根据 URL 自动识别 API 协议类型
+/// - URL 包含 anthropic / claude → Anthropic 协议
+/// - 其他 → OpenAI 兼容协议
+ApiProtocol _autoDetectProtocol(String url) {
+  final lower = url.toLowerCase();
+  if (lower.contains('anthropic') || lower.contains('claude')) {
+    return ApiProtocol.anthropic;
+  }
+  return ApiProtocol.openaiCompatible;
+}
+
 /// 智能补全 API 地址
 /// 根据用户填的 URL 和协议类型自动补全：
 /// - 已包含 /chat/completions → 不变
@@ -83,7 +94,13 @@ void _showEditAiConfigDialog(BuildContext context, WidgetRef ref, AiConfig confi
               const SizedBox(height: 12),
               TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称')),
               const SizedBox(height: 12),
-              TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com')),
+              TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com'), onChanged: (url) {
+                final detected = _autoDetectProtocol(url);
+                if (detected != selectedProtocol) {
+                  selectedProtocol = detected;
+                  setDialogState(() {});
+                }
+              }),
               const SizedBox(height: 12),
               TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型名')),
               const SizedBox(height: 12),
@@ -461,7 +478,14 @@ class ProfilePage extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称', hintText: '例如：DeepSeek / Claude')),
                 const SizedBox(height: 12),
-                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com')),
+                TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'API 地址', hintText: '例如：https://api.deepseek.com'), onChanged: (url) {
+                  // 根据 URL 自动识别协议
+                  final detected = _autoDetectProtocol(url);
+                  if (detected != selectedProtocol) {
+                    selectedProtocol = detected;
+                    setDialogState(() {});
+                  }
+                }),
                 const SizedBox(height: 12),
                 // Model field
                 TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型名', hintText: '例如：gpt-4o / claude-sonnet-4-20250514')),

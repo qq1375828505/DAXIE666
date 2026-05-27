@@ -104,18 +104,21 @@ class ModelTestService {
   }
 
   Map<String, String> _buildHeaders(AiConfig config) {
-    if (config.protocol == ApiProtocol.anthropic) {
-      return {
-        'x-api-key': config.apiKey ?? '',
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      };
-    }
-    return {
-      'Authorization': 'Bearer ${config.apiKey ?? ''}',
-      'api-key': config.apiKey ?? '',  // 兼容小米 MiMo 等使用 api-key 头的服务
+    final apiKey = config.apiKey ?? '';
+    final headers = <String, String>{
       'Content-Type': 'application/json',
     };
+
+    if (config.protocol == ApiProtocol.anthropic) {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+    } else {
+      // OpenAI 兼容协议：同时发送 Bearer 和 api-key，兼容所有厂商
+      headers['Authorization'] = 'Bearer $apiKey';
+      headers['api-key'] = apiKey;
+    }
+
+    return headers;
   }
 
   Map<String, dynamic> _buildTestPayload(AiConfig config) {

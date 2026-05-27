@@ -4,11 +4,12 @@ import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/data/services/cost_tracker.dart';
 
 /// Unified AI service with cost tracking.
+/// 自适应兼容所有主流 API 厂商（OpenAI / Anthropic / 小米MiMo / DeepSeek / 通义千问 / Moonshot 等）
 class AiService {
   final Dio _dio = Dio();
   final CostTracker _costTracker = CostTracker();
 
-  /// 智能补全 API 地址（兼容旧配置）
+  /// 智能补全 API 地址
   /// 根据协议类型自动补全为完整路径
   String _normalizeApiUrl(String url, ApiProtocol protocol) {
     url = url.trim();
@@ -34,7 +35,6 @@ class AiService {
 
   /// Send a chat completion request. Tracks cost automatically.
   Future<String> chat(AiConfig config, List<Map<String, String>> messages, {String taskType = 'chat'}) async {
-    // 兼容旧配置：确保 URL 已补全
     final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
 
     try {
@@ -78,19 +78,28 @@ class AiService {
     }
   }
 
+  /// 构建认证头
+  /// 同时发送多种认证头，兼容所有主流 API 厂商：
+  /// - Authorization: Bearer xxx  → OpenAI / DeepSeek / 通义千问 / Moonshot 等
+  /// - api-key: xxx             → 小米 MiMo / 部分国内厂商
+  /// - x-api-key: xxx           → Anthropic Claude
+  /// 服务端只会识别自己需要的头，其他头会被忽略
   Map<String, String> _buildHeaders(AiConfig config) {
-    if (config.protocol == ApiProtocol.anthropic) {
-      return {
-        'x-api-key': config.apiKey ?? '',
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      };
-    }
-    return {
-      'Authorization': 'Bearer ${config.apiKey ?? ''}',
-      'api-key': config.apiKey ?? '',  // 兼容小米 MiMo 等使用 api-key 头的服务
+    final apiKey = config.apiKey ?? '';
+    final headers = <String, String>{
       'Content-Type': 'application/json',
     };
+
+    if (config.protocol == ApiProtocol.anthropic) {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+    } else {
+      // OpenAI 兼容协议：同时发送 Bearer 和 api-key，兼容所有厂商
+      headers['Authorization'] = 'Bearer $apiKey';
+      headers['api-key'] = apiKey;
+    }
+
+    return headers;
   }
 
   Map<String, dynamic> _buildPayload(AiConfig config, List<Map<String, String>> messages) {
