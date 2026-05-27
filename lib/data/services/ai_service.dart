@@ -147,6 +147,101 @@ class AiService {
       {'role': 'user', 'content': userMessage},
     ], taskType: taskType);
   }
+
+  /// Send chat with function calling (OpenAI compatible).
+  /// Returns parsed response with optional tool_calls.
+  Future<_ToolChatResponse> chatWithTools({
+    required AiConfig config,
+    required List<Map<String, dynamic>> messages,
+    List<dynamic>? tools,
+    String taskType = 'agent',
+  }) async {
+    final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
+
+    try {
+      final payload = {
+        'model': config.modelName,
+        'messages': messages,
+        'temperature': config.temperature,
+        'max_tokens': config.maxTokens,
+      };
+
+      // 只在OpenAI兼容协议下添加tools
+      if (config.protocol != ApiProtocol.anthropic && tools != null && tools.isNotEmpty) {
+        payload['tools'] = tools;
+      }
+
+      final response = await _dio.post(
+        normalizedUrl,
+        options: Options(headers: _buildHeaders(config)),
+        data: payload,
+      );
+
+      // Track usage
+      final usage = response.data['usage'];
+      final tokenCount = (usage?['total_tokens'] as int?) ?? 0;
+      _costTracker.recordUsage(
+        configId: config.id,
+        model: config.modelName,
+        taskType: taskType,
+        tokenCount: tokenCount > 0 ? tokenCount : 100,
+      );
+
+      // Parse response
+      final choice = response.data['choices']?[0];
+      final message = choice?['message'];
+      final content = message?['content'] as String?;
+
+      // Parse tool_calls
+      List<ToolCallInfo>? toolCalls;
+      final rawToolCalls = message?['tool_calls'];
+      if (rawToolCalls != null && rawToolCalls is List && rawToolCalls.isNotEmpty) {
+        toolCalls = rawToolCalls.map((tc) => ToolCallInfo(
+          id: tc['id'] as String? ?? '',
+          functionName: tc['function']?['name'] as String? ?? '',
+          arguments: tc['function']?['arguments'] ?? '{}',
+        )).toList();
+      }
+
+      return _ToolChatResponse(content: content, toolCalls: toolCalls);
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401) {
+        throw Exception('API Key 无效或认证失败 (401)');
+      }
+      if (statusCode == 403) {
+        throw Exception('API Key 无权限访问该资源 (403)');
+      }
+      if (statusCode == 404) {
+        throw Exception('API地址错误 (404)');
+      }
+      if (statusCode == 429) {
+        throw Exception('请求频率超限 (429)，请稍后再试');
+      }
+      throw Exception('请求失败: ${e.message}');
+    }
+  }
+}
+
+/// Tool calling response
+class _ToolChatResponse {
+  final String? content;
+  final List<ToolCallInfo>? toolCalls;
+
+  const _ToolChatResponse({this.content, this.toolCalls});
+}
+
+/// Tool call info parsed from API response
+class ToolCallInfo {
+  final String id;
+  final String functionName;
+  final dynamic arguments;
+
+  const ToolCallInfo({
+    required this.id,
+    required this.functionName,
+    required this.arguments,
+  });
 }
 
 final aiServiceProvider = Provider((ref) => AiService());
