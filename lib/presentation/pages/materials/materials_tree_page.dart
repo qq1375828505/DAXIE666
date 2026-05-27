@@ -529,15 +529,15 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
           FilledButton(
             onPressed: () {
               if (titleCtrl.text.trim().isEmpty) return;
-              final ref = ReferenceMaterial(
+              final newRef = ReferenceMaterial(
                 id: const Uuid().v4(),
                 novelId: novelId,
                 title: titleCtrl.text.trim(),
                 content: contentCtrl.text.trim().isEmpty ? null : contentCtrl.text.trim(),
               );
               final list = ref.read(referencesProvider(novelId));
-              ref.read(referencesProvider(novelId).notifier).state = [...list, ref];
-              MaterialRepository().saveReferences(novelId, [...list, ref]);
+              ref.read(referencesProvider(novelId).notifier).state = [...list, newRef];
+              MaterialRepository().saveReferences(novelId, [...list, newRef]);
               Navigator.pop(ctx);
             },
             child: const Text('添加'),
