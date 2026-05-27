@@ -8,10 +8,37 @@ class AiService {
   final Dio _dio = Dio();
   final CostTracker _costTracker = CostTracker();
 
+  /// 智能补全 API 地址（兼容旧配置）
+  /// 根据协议类型自动补全为完整路径
+  String _normalizeApiUrl(String url, ApiProtocol protocol) {
+    url = url.trim();
+    if (url.isEmpty) return url;
+
+    // 已经是完整路径，直接返回
+    if (url.contains('/chat/completions')) return url;
+    if (url.contains('/v1/messages')) return url;
+
+    // Anthropic 协议特殊处理
+    if (protocol == ApiProtocol.anthropic) {
+      if (url.endsWith('/anthropic')) return '$url/v1/messages';
+      if (url.endsWith('/v1')) return '$url/messages';
+      if (!url.endsWith('/')) url = '$url/';
+      return '${url}v1/messages';
+    }
+
+    // OpenAI 兼容协议
+    if (url.endsWith('/v1')) return '$url/chat/completions';
+    if (!url.endsWith('/')) url = '$url/';
+    return '${url}v1/chat/completions';
+  }
+
   /// Send a chat completion request. Tracks cost automatically.
   Future<String> chat(AiConfig config, List<Map<String, String>> messages, {String taskType = 'chat'}) async {
+    // 兼容旧配置：确保 URL 已补全
+    final normalizedUrl = _normalizeApiUrl(config.apiUrl, config.protocol);
+
     final response = await _dio.post(
-      config.apiUrl,
+      normalizedUrl,
       options: Options(headers: _buildHeaders(config)),
       data: _buildPayload(config, messages),
     );
