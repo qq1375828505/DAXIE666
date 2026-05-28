@@ -65,7 +65,7 @@ class SkinTheme {
           backgroundColor: appBarBg,
           foregroundColor: textPrimary,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           color: cardBg,
