@@ -160,28 +160,42 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
 
     // === 主动式交互：模糊需求检测 ===
     final detector = FuzzyNeedDetector();
-    final fuzzyType = detector.detect(text);
+    final fuzzyType = await detector.detect(
+      text,
+      config: config,
+      userMemory: await UserMemory.load().catchError((_) => ''),
+      novelContext: ref.read(selectedNovelProvider) != null
+          ? await NovelMemory.getForAiContext(
+              ref.read(selectedNovelProvider)!.id,
+              ref.read(selectedNovelProvider)!.title,
+            ).catchError((_) => '')
+          : null,
+    );
     
     if (fuzzyType != null) {
-      // 获取用户记忆和可用技能
-      String? userMemory;
+      // 获取可用技能
       List<WritingSkill>? skills;
       try {
-        userMemory = await UserMemory.load();
         final skillRepo = ref.read(skillRepoProvider);
         skills = await skillRepo.getAllSkills();
       } catch (_) {}
 
-      // 生成个性化问题
+      // AI生成个性化问题
       final question = await detector.generateQuestion(
         text,
         fuzzyType,
-        userMemory: userMemory,
+        config: config,
+        userMemory: await UserMemory.load().catchError((_) => ''),
+        novelContext: ref.read(selectedNovelProvider) != null
+            ? await NovelMemory.getForAiContext(
+                ref.read(selectedNovelProvider)!.id,
+                ref.read(selectedNovelProvider)!.title,
+              ).catchError((_) => '')
+            : null,
         availableSkills: skills,
       );
 
       if (question != null && mounted) {
-        // 显示主动提问弹窗
         ProactiveSelection? selection;
         await ProactiveQuestionDialog.show(
           context,
@@ -190,7 +204,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
           onSkipped: () => selection = null,
         );
 
-        // 如果用户选择了选项，将选择结果附加到消息
         if (selection != null) {
           _inputCtrl.text = '$text\n\n[用户选择：${selection!.toAiContext()}]';
         }
