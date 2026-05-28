@@ -13,6 +13,7 @@ import 'package:novel_ide/data/services/default_config_service.dart';
 import 'package:novel_ide/data/services/announcement_service.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -151,8 +152,11 @@ class _NovelIdeAppState extends ConsumerState<NovelIdeApp> with WidgetsBindingOb
               Text(announcement['content']!),
               const SizedBox(height: 12),
               GestureDetector(
-                onTap: () {
-                  // TODO: 打开浏览器
+                onTap: () async {
+                  final uri = Uri.parse(announcement['url']!);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),

@@ -36,6 +36,7 @@ dependencies:
   webview_flutter: ^4.10.0
   charset: ^2.0.1
   shared_preferences: ^2.2.3
+  url_launcher: ^6.2.5
 
 
 dev_dependencies:
