@@ -343,9 +343,9 @@ class _VoiceConfigPageState extends ConsumerState<VoiceConfigPage> {
                 protocol: config.protocol,
               );
 
-              // 更新数据库
+              // 更新数据库（使用insert的replace策略）
               final db = DatabaseHelper();
-              await db.updateAiConfig(db.toDbMap(updatedConfig));
+              await db.insertAiConfig(db.toDbMap(updatedConfig));
               // 更新API Key
               if (apiKeyCtrl.text.trim().isNotEmpty) {
                 await SecureStorageDataSource().writeApiKey(config.id, apiKeyCtrl.text.trim());
