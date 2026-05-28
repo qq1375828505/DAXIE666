@@ -134,61 +134,88 @@ class _SkillManagePageState extends ConsumerState<SkillManagePage> {
   Widget _buildSkillCard(WritingSkill skill) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: skill.isEnabled
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-              : Colors.grey[200],
-          child: Icon(
-            skill.isBuiltIn ? Icons.auto_awesome : Icons.edit_note,
-            color: skill.isEnabled
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey,
-            size: 20,
-          ),
-        ),
-        title: Row(
-          children: [
-            Text(skill.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-            if (skill.isBuiltIn)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
+      child: InkWell(
+        onTap: () => _showSkillDetail(skill),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              // 左侧图标
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: skill.isEnabled
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                    : Colors.grey[200],
+                child: Icon(
+                  skill.isBuiltIn ? Icons.auto_awesome : Icons.edit_note,
+                  color: skill.isEnabled
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey,
+                  size: 18,
                 ),
-                child: const Text('内置', style: TextStyle(fontSize: 10, color: Colors.orange)),
               ),
-          ],
-        ),
-        subtitle: Text(
-          skill.description,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Switch(
-              value: skill.isEnabled,
-              onChanged: (val) => _toggleSkill(skill, val),
-            ),
-            if (!skill.isBuiltIn)
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') _showSkillDialog(skill: skill);
-                  if (value == 'delete') _deleteSkill(skill);
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
-                  const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
+              const SizedBox(width: 12),
+              // 中间内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            skill.name,
+                            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (skill.isBuiltIn)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('内置', style: TextStyle(fontSize: 10, color: Colors.orange)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      skill.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
+              // 右侧操作区
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: skill.isEnabled,
+                    onChanged: (val) => _toggleSkill(skill, val),
+                  ),
+                  if (!skill.isBuiltIn)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') _showSkillDialog(skill: skill);
+                        if (value == 'delete') _deleteSkill(skill);
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                        const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
                 ],
               ),
-          ],
+            ],
+          ),
         ),
-        onTap: () => _showSkillDetail(skill),
       ),
     );
   }
