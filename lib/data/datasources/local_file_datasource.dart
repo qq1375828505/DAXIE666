@@ -110,6 +110,7 @@ class LocalFileDataSource {
     final projectDir = Directory(projectPath);
     await _addDirectoryToArchive(projectDir, projectDir.path, archive);
     final zipData = ZipEncoder().encode(archive);
+    if (zipData == null) throw Exception('ZIP编码失败');
     await File(exportPath).writeAsBytes(zipData);
   }
 
