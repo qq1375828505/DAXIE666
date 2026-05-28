@@ -37,11 +37,6 @@ dependencies:
   charset: ^2.0.1
   shared_preferences: ^2.2.3
   url_launcher: ^6.2.5
-  docx_creator: ^1.2.7
-
-dependency_overrides:
-  image: ^4.8.0
-  archive: ^4.0.9
 
 dev_dependencies:
   flutter_test:
