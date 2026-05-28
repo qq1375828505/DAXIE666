@@ -27,11 +27,12 @@ class RichEditorPage extends ConsumerStatefulWidget {
   ConsumerState<RichEditorPage> createState() => _RichEditorPageState();
 }
 
-class _RichEditorPageState extends ConsumerState<RichEditorPage> {
+class _RichEditorPageState extends ConsumerState<RichEditorPage> with WidgetsBindingObserver {
   late final WebViewController _webController;
   bool _isEditorReady = false;
   String _currentText = '';
   int _wordCount = 0;
+  String _savedContent = ''; // 保存的内容，用于恢复
 
   // 当前选区状态（从JS同步过来）
   bool _isBold = false;
@@ -42,7 +43,39 @@ class _RichEditorPageState extends ConsumerState<RichEditorPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _savedContent = widget.initialContent;
     _initWebView();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused) {
+      // 切到后台：保存当前内容
+      _saveCurrentContent();
+    } else if (state == AppLifecycleState.resumed) {
+      // 切回前台：检查 WebView 是否需要重新初始化
+      if (!_isEditorReady) {
+        _initWebView();
+      }
+    }
+  }
+
+  Future<void> _saveCurrentContent() async {
+    if (!_isEditorReady) return;
+    try {
+      final result = await _webController.runJavaScriptReturningResult('document.body.innerText');
+      _savedContent = result.toString();
+    } catch (e) {
+      debugPrint('Save content error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _initWebView() async {
