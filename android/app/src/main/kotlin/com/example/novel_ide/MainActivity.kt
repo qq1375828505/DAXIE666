@@ -1,6 +1,7 @@
 package com.example.novel_ide
 
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
