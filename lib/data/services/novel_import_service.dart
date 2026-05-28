@@ -8,22 +8,180 @@ import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 
+/// 导入内容类型
+enum ImportContentType {
+  chapters,   // 正文章节（默认）
+  outline,    // 大纲/总纲
+  characters, // 角色卡
+  settings,   // 设定
+}
+
+/// 导入预览结果（确认前展示）
+class ImportPreview {
+  final ImportContentType contentType;
+  final String detectedType;       // 识别到的类型描述，如"总纲"、"角色卡"
+  final String matchSource;        // 匹配来源：文件名/内容结构
+  final List<_ParsedChapter> chapters;
+  final int totalWords;
+
+  ImportPreview({
+    required this.contentType,
+    required this.detectedType,
+    required this.matchSource,
+    required this.chapters,
+    required this.totalWords,
+  });
+}
+
 /// 小说文件导入服务
-/// 支持 TXT / MD / DOCX 格式，自动拆分为章节
+/// 支持 TXT / MD / DOCX 格式，自动识别文件类型，拆分章节
 class NovelImportService {
   static final _uuid = Uuid();
 
-  /// 导入结果
   static const int maxChapterTitleLength = 50;
 
-  /// 从文件导入小说，自动拆分章节
-  /// 如果不传入 novelId/novelTitle，会自动创建新作品
-  /// 返回导入的章节数量
+  // 文件名语义关键词映射
+  static const _filenameKeywords = {
+    ImportContentType.outline:    ['总纲', '大纲', '纲要', '主线', 'outline'],
+    ImportContentType.characters: ['角色', '人物', '人设', 'character'],
+    ImportContentType.settings:   ['设定', '世界观', '背景', 'setting'],
+  };
+
+  // 内容结构特征关键词
+  static const _contentOutlineMarkers = ['总纲', '主线剧情', '世界观设定', '分卷大纲', '故事线'];
+  static const _contentCharacterMarkers = ['姓名：', '年龄：', '身份：', '性格：', '外貌：', '主角', '配角', '反派'];
+  static const _contentSettingMarkers = ['世界观', '修炼体系', '势力分布', '魔法体系', '战力体系'];
+
+  /// 预览导入：分析文件，返回识别结果（不写入数据库）
+  Future<ImportPreview> previewImport(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('文件不存在');
+    }
+
+    final ext = p.extension(filePath).toLowerCase();
+    String content;
+    switch (ext) {
+      case '.txt': case '.md':
+        content = await _readTextFile(file);
+        break;
+      case '.docx':
+        content = await _readDocx(file);
+        break;
+      default:
+        throw Exception('不支持的文件格式: $ext');
+    }
+
+    if (content.trim().isEmpty) {
+      throw Exception('文件内容为空');
+    }
+
+    // Step 1: 文件名语义分析
+    final fileName = p.basenameWithoutExtension(filePath);
+    final detectedByFilename = _detectByFilename(fileName);
+
+    // Step 2: 内容结构分析
+    final detectedByContent = _detectByContent(content);
+
+    // Step 3: 决定最终类型（文件名优先于内容分析）
+    ImportContentType contentType;
+    String detectedType;
+    String matchSource;
+
+    if (detectedByFilename != null) {
+      contentType = detectedByFilename.key;
+      detectedType = detectedByFilename.value;
+      matchSource = '文件名';
+    } else if (detectedByContent != null) {
+      contentType = detectedByContent.key;
+      detectedType = detectedByContent.value;
+      matchSource = '内容结构';
+    } else {
+      contentType = ImportContentType.chapters;
+      detectedType = '正文章节';
+      matchSource = '默认';
+    }
+
+    // Step 4: 拆分内容
+    List<_ParsedChapter> chapters;
+    if (contentType == ImportContentType.chapters) {
+      chapters = _splitChapters(content);
+      if (chapters.isEmpty) {
+        chapters = [_ParsedChapter(title: '导入内容', content: content.trim())];
+      }
+    } else {
+      // 非章节类型，整块保存
+      chapters = [_ParsedChapter(title: detectedType, content: content.trim())];
+    }
+
+    final totalWords = chapters.fold<int>(0, (sum, ch) => sum + ch.content.length);
+
+    return ImportPreview(
+      contentType: contentType,
+      detectedType: detectedType,
+      matchSource: matchSource,
+      chapters: chapters,
+      totalWords: totalWords,
+    );
+  }
+
+  /// 文件名语义分析
+  MapEntry<ImportContentType, String>? _detectByFilename(String fileName) {
+    final lower = fileName.toLowerCase();
+    for (final entry in _filenameKeywords.entries) {
+      for (final kw in entry.value) {
+        if (lower.contains(kw.toLowerCase())) {
+          final label = switch (entry.key) {
+            ImportContentType.outline => '大纲/总纲',
+            ImportContentType.characters => '角色卡',
+            ImportContentType.settings => '设定资料',
+            _ => '正文',
+          };
+          return MapEntry(entry.key, label);
+        }
+      }
+    }
+    return null;
+  }
+
+  /// 内容结构分析
+  MapEntry<ImportContentType, String>? _detectByContent(String content) {
+    // 统计各类型标记出现次数
+    int outlineScore = 0;
+    int characterScore = 0;
+    int settingScore = 0;
+
+    for (final kw in _contentOutlineMarkers) {
+      outlineScore += kw.allMatches(content).length;
+    }
+    for (final kw in _contentCharacterMarkers) {
+      characterScore += kw.allMatches(content).length;
+    }
+    for (final kw in _contentSettingMarkers) {
+      settingScore += kw.allMatches(content).length;
+    }
+
+    // 阈值：至少出现3次
+    if (characterScore >= 3 && characterScore > outlineScore && characterScore > settingScore) {
+      return const MapEntry(ImportContentType.characters, '角色卡（内容结构识别）');
+    }
+    if (settingScore >= 3 && settingScore > outlineScore) {
+      return const MapEntry(ImportContentType.settings, '设定资料（内容结构识别）');
+    }
+    if (outlineScore >= 3) {
+      return const MapEntry(ImportContentType.outline, '大纲/总纲（内容结构识别）');
+    }
+
+    return null;
+  }
+
+  /// 从文件导入小说，确认后调用写入数据库
   Future<ImportResult> importFromFile({
     String? novelId,
     String? novelTitle,
     required String filePath,
     String? volumeId,
+    ImportContentType? overrideContentType, // 允许用户手动调整类型
   }) async {
     final file = File(filePath);
     if (!await file.exists()) {
@@ -35,8 +193,7 @@ class NovelImportService {
 
     try {
       switch (ext) {
-        case '.txt':
-        case '.md':
+        case '.txt': case '.md':
           content = await _readTextFile(file);
           break;
         case '.docx':
@@ -53,10 +210,18 @@ class NovelImportService {
       return ImportResult(success: false, error: '文件内容为空');
     }
 
-    // 自动拆分章节
-    final chapters = _splitChapters(content);
+    // 预览分析确定内容类型
+    ImportContentType contentType;
+    if (overrideContentType != null) {
+      contentType = overrideContentType;
+    } else {
+      final fileName = p.basenameWithoutExtension(filePath);
+      contentType = _detectByFilename(fileName)?.key ?? _detectByContent(content)?.key ?? ImportContentType.chapters;
+    }
 
-    if (chapters.isEmpty) {
+    // 拆分章节
+    final chapters = _splitChapters(content);
+    if (chapters.isEmpty && contentType == ImportContentType.chapters) {
       return ImportResult(success: false, error: '未能识别到章节内容');
     }
 
@@ -64,19 +229,16 @@ class NovelImportService {
     final db = await DatabaseHelper().database;
     final fs = LocalFileDataSource();
 
-    // 如果没有传入 novelId，自动创建新作品
     String actualNovelId = novelId ?? '';
     String actualNovelTitle = novelTitle ?? '';
 
     if (actualNovelId.isEmpty) {
-      // 从文件名提取作品标题
       actualNovelTitle = p.basenameWithoutExtension(filePath);
       if (actualNovelTitle.length > 50) {
         actualNovelTitle = actualNovelTitle.substring(0, 50);
       }
       actualNovelId = _uuid.v4();
 
-      // 创建作品记录
       final now = DateTime.now().millisecondsSinceEpoch;
       await db.insert('novels', {
         'id': actualNovelId,
@@ -106,19 +268,24 @@ class NovelImportService {
       startIndex = (existing.first['order_index'] as int? ?? 0) + 1;
     }
 
-    // 如果没有 volumeId，创建一个默认卷
+    // 创建或查找默认卷
     String? actualVolumeId = volumeId;
     if (actualVolumeId == null || actualVolumeId.isEmpty) {
-      // 查找或创建默认卷
       final volumes = await db.query('volumes',
           where: 'novel_id = ?', whereArgs: [actualNovelId],
           orderBy: 'order_index ASC');
       if (volumes.isEmpty) {
         actualVolumeId = _uuid.v4();
+        final volumeTitle = switch (contentType) {
+          ImportContentType.outline => '大纲',
+          ImportContentType.characters => '角色',
+          ImportContentType.settings => '设定',
+          ImportContentType.chapters => '正文',
+        };
         await db.insert('volumes', {
           'id': actualVolumeId,
           'novel_id': actualNovelId,
-          'title': '正文',
+          'title': volumeTitle,
           'order_index': 0,
           'summary': '',
           'created_at': DateTime.now().millisecondsSinceEpoch,
@@ -136,7 +303,6 @@ class NovelImportService {
       final chapterId = _uuid.v4();
       final orderIndex = startIndex + i;
 
-      // 写入数据库
       await db.insert('chapters', {
         'id': chapterId,
         'novel_id': actualNovelId,
@@ -150,7 +316,6 @@ class NovelImportService {
         'updated_at': now,
       });
 
-      // 写入文件系统
       await fs.saveChapterContent(projectPath, chapterId, ch.content);
       importedCount++;
     }
@@ -159,40 +324,27 @@ class NovelImportService {
       success: true,
       chapterCount: importedCount,
       totalWords: chapters.fold(0, (sum, ch) => sum + ch.content.length),
+      contentType: contentType,
     );
   }
 
   /// 读取文本文件，自动检测编码（UTF-8 / GBK）
   Future<String> _readTextFile(File file) async {
     final bytes = await file.readAsBytes();
-
-    // 先尝试 UTF-8 解码
-    final utf8Result = utf8.decode(bytes, allowMalformed: false);
-
-    // 检查是否包含 UTF-8 替换字符（U+FFFD），有则说明不是合法 UTF-8
-    if (!utf8Result.contains('�')) {
-      return utf8Result;
-    }
-
-    // 回退到 GBK 解码
     try {
-      final gbkResult = gbk.decode(bytes);
-      if (gbkResult.isNotEmpty) return gbkResult;
+      final utf8Result = utf8.decode(bytes, allowMalformed: false);
+      if (!utf8Result.contains('�')) return utf8Result;
     } catch (_) {}
-
-    // 都失败了，用 allowMalformed 兜底
+    try {
+      return gbk.decode(bytes);
+    } catch (_) {}
     return utf8.decode(bytes, allowMalformed: true);
   }
 
-
   /// 读取 DOCX 文件内容
   Future<String> _readDocx(File file) async {
-    // 使用 docx_text_extractor 包
     try {
-      // 动态导入避免构建时依赖
       final bytes = await file.readAsBytes();
-      // 如果 docx_text_extractor 不可用，尝试手动解析
-      // DOCX 本质是 ZIP，word/document.xml 包含正文
       return await _extractDocxText(bytes);
     } catch (e) {
       throw Exception('DOCX 解析失败: $e');
@@ -216,11 +368,9 @@ class NovelImportService {
       throw Exception('无法找到 word/document.xml');
     }
 
-    // 正确解码 UTF-8 字节流，而非逐字节转码
     final contentBytes = docXmlFile.content as List<int>;
     final xmlContent = utf8.decode(contentBytes, allowMalformed: true);
 
-    // 提取 <w:t> 标签中的文本
     final buffer = StringBuffer();
     final regex = RegExp(r'<w:t[^>]*>([^<]*)</w:t>');
     for (final match in regex.allMatches(xmlContent)) {
@@ -230,14 +380,6 @@ class NovelImportService {
   }
 
   /// 自动拆分章节
-  /// 支持的章节标题格式：
-  /// - 第X章 标题
-  /// - 第X章：标题
-  /// - 第X章 标题
-  /// - Chapter X 标题
-  /// - ### 标题 (Markdown)
-  /// - ## 标题 (Markdown)
-  /// - 【第X章】标题
   List<_ParsedChapter> _splitChapters(String content) {
     final lines = content.split('\n');
     final chapters = <_ParsedChapter>[];
@@ -245,7 +387,6 @@ class NovelImportService {
     String currentTitle = '';
     bool hasChapter = false;
 
-    // 章节标题正则
     final chapterRegex = RegExp(
       r'^(?:【)?第[零一二三四五六七八九十百千万\d]+[章节回卷集话幕](?:】)?[：:\s]?(.*)$',
     );
@@ -274,7 +415,6 @@ class NovelImportService {
         continue;
       }
 
-      // 检查是否是章节标题
       String? matchTitle;
 
       final chapterMatch = chapterRegex.firstMatch(trimmed);
@@ -293,7 +433,6 @@ class NovelImportService {
       }
 
       if (matchTitle != null && matchTitle.length <= maxChapterTitleLength) {
-        // 找到新章节标题，先保存之前的章节
         if (currentContent.toString().trim().isNotEmpty || hasChapter) {
           flushChapter();
         }
@@ -306,10 +445,8 @@ class NovelImportService {
       }
     }
 
-    // 保存最后一个章节
     flushChapter();
 
-    // 如果没有识别到任何章节标题，把整个内容作为一个章节
     if (chapters.isEmpty && content.trim().isNotEmpty) {
       chapters.add(_ParsedChapter(
         title: '导入内容',
@@ -333,12 +470,14 @@ class ImportResult {
   final bool success;
   final int chapterCount;
   final int totalWords;
+  final ImportContentType? contentType;
   final String? error;
 
   ImportResult({
     required this.success,
     this.chapterCount = 0,
     this.totalWords = 0,
+    this.contentType,
     this.error,
   });
 }
