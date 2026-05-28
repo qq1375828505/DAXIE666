@@ -12,6 +12,8 @@ class VoiceService {
   bool _isListening = false;
   bool _isSpeaking = false;
   bool _speechAvailable = false;
+  bool _isMuted = false; // 静音状态
+  bool _isSpeakerOn = true; // 扬声器状态
   String _lastWords = '';
   String _localeId = 'zh_CN';
 
@@ -20,10 +22,14 @@ class VoiceService {
   VoidCallback? onListeningEnd;
   ValueChanged<String>? onResult;
   ValueChanged<bool>? onSpeakingChanged;
+  ValueChanged<bool>? onMutedChanged;
+  ValueChanged<bool>? onSpeakerChanged;
 
   bool get isListening => _isListening;
   bool get isSpeaking => _isSpeaking;
   bool get isAvailable => _speechAvailable;
+  bool get isMuted => _isMuted;
+  bool get isSpeakerOn => _isSpeakerOn;
   String get lastWords => _lastWords;
 
   /// 初始化语音服务
@@ -139,6 +145,26 @@ class VoiceService {
       await _channel.invokeMethod('setLanguage', {'locale': language});
     } catch (e) {
       debugPrint('设置语言失败: $e');
+    }
+  }
+
+  /// 切换静音状态
+  void toggleMute() {
+    _isMuted = !_isMuted;
+    onMutedChanged?.call(_isMuted);
+    if (_isMuted && _isListening) {
+      stopListening();
+    }
+  }
+
+  /// 切换扬声器状态
+  Future<void> toggleSpeaker() async {
+    _isSpeakerOn = !_isSpeakerOn;
+    onSpeakerChanged?.call(_isSpeakerOn);
+    try {
+      await _channel.invokeMethod('setSpeakerOn', {'speakerOn': _isSpeakerOn});
+    } catch (e) {
+      debugPrint('切换扬声器失败: $e');
     }
   }
 

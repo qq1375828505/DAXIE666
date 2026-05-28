@@ -4,6 +4,7 @@ import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/config_service.dart';
+import 'package:novel_ide/data/services/ai_service.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/datasources/secure_storage_datasource.dart';
 
@@ -123,9 +124,13 @@ class _VoiceConfigPageState extends ConsumerState<VoiceConfigPage> {
                               if (isSelected) Icon(Icons.check_circle, color: AppColors.primary),
                               PopupMenuButton<String>(
                                 onSelected: (value) {
+                                  if (value == 'edit') _showEditVoiceModelDialog(config);
+                                  if (value == 'test') _testVoiceModel(config);
                                   if (value == 'delete') _deleteVoiceModel(config);
                                 },
                                 itemBuilder: (_) => [
+                                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                                  const PopupMenuItem(value: 'test', child: Text('测试连接')),
                                   const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
                                 ],
                               ),
@@ -277,6 +282,138 @@ class _VoiceConfigPageState extends ConsumerState<VoiceConfigPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已删除「${config.name}」')),
+        );
+      }
+    }
+  }
+
+  /// 编辑语音模型
+  void _showEditVoiceModelDialog(AiConfig config) async {
+    final nameCtrl = TextEditingController(text: config.name);
+    final urlCtrl = TextEditingController(text: config.apiUrl);
+    final modelCtrl = TextEditingController(text: config.modelName);
+    final apiKeyCtrl = TextEditingController();
+    // 读取现有API Key
+    final existingKey = await SecureStorageDataSource().readApiKey(config.id);
+    apiKeyCtrl.text = existingKey ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('编辑语音模型'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: '模型名称'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlCtrl,
+                decoration: const InputDecoration(labelText: 'API地址'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: modelCtrl,
+                decoration: const InputDecoration(labelText: '模型ID'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: apiKeyCtrl,
+                decoration: const InputDecoration(labelText: 'API Key'),
+                obscureText: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty || modelCtrl.text.trim().isEmpty) return;
+
+              final updatedConfig = AiConfig(
+                id: config.id,
+                name: nameCtrl.text.trim(),
+                apiUrl: urlCtrl.text.trim(),
+                modelName: modelCtrl.text.trim(),
+                modelType: config.modelType,
+                protocol: config.protocol,
+              );
+
+              // 更新数据库
+              final db = DatabaseHelper();
+              await db.updateAiConfig(db.toDbMap(updatedConfig));
+              // 更新API Key
+              if (apiKeyCtrl.text.trim().isNotEmpty) {
+                await SecureStorageDataSource().writeApiKey(config.id, apiKeyCtrl.text.trim());
+              }
+
+              ref.invalidate(aiConfigsProvider);
+              Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已更新「${updatedConfig.name}」')),
+                );
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 测试语音模型连接
+  Future<void> _testVoiceModel(AiConfig config) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('正在测试连接...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // 从SecureStorage读取API Key
+      final apiKey = await SecureStorageDataSource().readApiKey(config.id);
+      final testConfig = AiConfig(
+        id: config.id,
+        name: config.name,
+        apiUrl: config.apiUrl,
+        modelName: config.modelName,
+        apiKey: apiKey,
+        modelType: config.modelType,
+        protocol: config.protocol,
+      );
+
+      final aiService = AiService();
+      // 发送一个简单的测试请求
+      await aiService.send(
+        config: testConfig,
+        systemPrompt: '你是一个测试助手',
+        userMessage: '测试',
+      );
+
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('「${config.name}」连接成功'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('连接失败: $e'), backgroundColor: Colors.red),
         );
       }
     }

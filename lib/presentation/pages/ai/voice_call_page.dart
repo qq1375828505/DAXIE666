@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/services/voice_service.dart';
+import 'package:novel_ide/data/services/ai_service.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 
 /// 语音通话页面 - 实时语音对话界面
@@ -50,15 +51,56 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
         _voiceService.onListeningStart = () {
           setState(() => _waveAmplitude = 1.0);
         };
-        _voiceService.onListeningEnd = () {
+        _voiceService.onListeningEnd = () async {
           if (_currentPartial.isNotEmpty) {
+            final userText = _currentPartial;
             setState(() {
-              _transcript.add('👤 $_currentPartial');
+              _transcript.add('👤 $userText');
               _currentPartial = '';
               _waveAmplitude = 0.0;
             });
+            // 调用AI获取回复
+            await _getAiResponse(userText);
           }
         };
+        // 监听静音和扬声器状态变化
+        _voiceService.onMutedChanged = (isMuted) {
+          setState(() {});
+        };
+        _voiceService.onSpeakerChanged = (isSpeakerOn) {
+          setState(() {});
+        };
+      }
+    }
+  }
+
+  /// 获取AI回复
+  Future<void> _getAiResponse(String userMessage) async {
+    if (!_isCallActive) return;
+    
+    final aiConfig = ref.read(selectedAiConfigProvider);
+    if (aiConfig == null) {
+      setState(() {
+        _transcript.add('🤖 错误：未配置AI模型，请在设置中添加');
+      });
+      return;
+    }
+
+    try {
+      final aiService = AiService();
+      final response = await aiService.send(
+        config: aiConfig,
+        systemPrompt: '你是一个友好的AI助手，正在进行语音对话。请用简洁自然的语言回复。',
+        userMessage: userMessage,
+      );
+      await _aiRespond(response);
+    } catch (e) {
+      setState(() {
+        _transcript.add('🤖 错误：$e');
+      });
+      // 出错后继续监听
+      if (_isCallActive && !_voiceService.isMuted) {
+        await _voiceService.startListening();
       }
     }
   }
@@ -236,12 +278,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _ControlButton(
-              icon: Icons.mic_off,
-              label: '静音',
+              icon: _voiceService.isMuted ? Icons.mic_off : Icons.mic,
+              label: _voiceService.isMuted ? '已静音' : '静音',
+              isActive: _voiceService.isMuted,
               onTap: () {
-                if (_isCallActive) {
-                  _voiceService.stopListening();
-                }
+                _voiceService.toggleMute();
               },
             ),
             const SizedBox(width: 40),
@@ -271,10 +312,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             ),
             const SizedBox(width: 40),
             _ControlButton(
-              icon: Icons.volume_up,
-              label: '扬声器',
+              icon: _voiceService.isSpeakerOn ? Icons.volume_up : Icons.headphones,
+              label: _voiceService.isSpeakerOn ? '扬声器' : '耳机',
+              isActive: _voiceService.isSpeakerOn,
               onTap: () {
-                // 切换扬声器
+                _voiceService.toggleSpeaker();
               },
             ),
           ],
@@ -288,8 +330,14 @@ class _ControlButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool isActive;
 
-  const _ControlButton({required this.icon, required this.label, required this.onTap});
+  const _ControlButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -302,12 +350,27 @@ class _ControlButton extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
+              color: isActive
+                  ? AppColors.primary.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.1),
+              border: isActive
+                  ? Border.all(color: AppColors.primary, width: 2)
+                  : null,
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
+            child: Icon(
+              icon,
+              color: isActive ? AppColors.primary : Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(height: 6),
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? AppColors.primary : Colors.white.withOpacity(0.6),
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );
