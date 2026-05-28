@@ -394,14 +394,20 @@ class _VoiceConfigPageState extends ConsumerState<VoiceConfigPage> {
         return;
       }
 
-      // 使用Dio发送POST请求到 /v1/chat/completions 测试连通性
-      // MiMo等OpenAI兼容API需要通过chat端点测试
+      // 规范化API地址（与 ai_service 一致）
+      String normalizedUrl = config.apiUrl.trim();
+      if (!normalizedUrl.contains('/chat/completions')) {
+        if (normalizedUrl.endsWith('/v1')) {
+          normalizedUrl = '$normalizedUrl/chat/completions';
+        } else {
+          if (!normalizedUrl.endsWith('/')) normalizedUrl = '$normalizedUrl/';
+          normalizedUrl = '${normalizedUrl}v1/chat/completions';
+        }
+      }
+
       final dio = Dio();
-      final baseUrl = config.apiUrl.endsWith('/v1')
-          ? config.apiUrl
-          : '${config.apiUrl}/v1';
       final response = await dio.post(
-        '$baseUrl/chat/completions',
+        normalizedUrl,
         data: {
           'model': config.modelName,
           'messages': [
