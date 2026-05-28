@@ -8,12 +8,14 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var tts: TextToSpeech? = null
-    private val channel = "com.example.novel_ide/tts"
+    private val channelName = "com.example.novel_ide/tts"
+    private var methodChannel: MethodChannel? = null
     private lateinit var audioManager: AudioManager
     private var isSpeakerOn = false // 默认关闭扬声器（走听筒/耳机）
     private var bluetoothHeadsetConnected = false
@@ -22,7 +24,8 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, channel).setMethodCallHandler { call, result ->
+        methodChannel = MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, channelName)
+        methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initTTS" -> {
                     val locale = call.argument<String>("locale") ?: "zh-CN"
@@ -88,28 +91,13 @@ class MainActivity : FlutterActivity() {
                         .build()
                 )
                 // 监听朗读完成事件，通知 Flutter 端
-                tts?.setOnUtteranceProgressListener(object : TextToSpeech.OnUtteranceProgressListener() {
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {}
                     override fun onDone(utteranceId: String?) {
-                        runOnUiThread {
-                            try {
-                                channel.invokeMethod("onSpeakingDone", null)
-                            } catch (_: Exception) {}
-                        }
+                        methodChannel?.invokeMethod("onSpeakingDone", null)
                     }
                     override fun onError(utteranceId: String?) {
-                        runOnUiThread {
-                            try {
-                                channel.invokeMethod("onSpeakingDone", null)
-                            } catch (_: Exception) {}
-                        }
-                    }
-                    override fun onError(utteranceId: String?, errorCode: Int) {
-                        runOnUiThread {
-                            try {
-                                channel.invokeMethod("onSpeakingDone", null)
-                            } catch (_: Exception) {}
-                        }
+                        methodChannel?.invokeMethod("onSpeakingDone", null)
                     }
                 })
                 // 初始化音频路由
