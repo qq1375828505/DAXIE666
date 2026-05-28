@@ -305,24 +305,24 @@ class _ExportPageState extends State<ExportPage> {
         }
       }
 
-      // Create zip - use ZipFileEncoder to write directly to disk
+      // Create zip
       final zipPath = p.join(tempDir.path, '${widget.novelTitle}.zip');
-      final encoder = ZipFileEncoder(zipPath);
-      encoder.create();
+      final encoder = ZipEncoder();
+      final archive = Archive();
       await for (final entity in exportDir.list(recursive: true)) {
         if (entity is File) {
           final relativePath = p.relative(entity.path, from: exportDir.path);
-          await encoder.addFile(entity, relativePath);
+          final bytes = await entity.readAsBytes();
+          archive.addFile(ArchiveFile(relativePath, bytes.length, bytes));
         }
       }
-      encoder.close();
+      final zipBytes = encoder.encode(archive)!;
+      await File(zipPath).writeAsBytes(zipBytes);
 
       if (shareOnly) {
         final file = XFile(zipPath);
         await Share.shareXFiles([file], text: '${widget.novelTitle} 作品导出');
       } else {
-        final zipFile = File(zipPath);
-        final zipBytes = await zipFile.readAsBytes();
         final outputPath = await FilePicker.platform.saveFile(
           dialogTitle: '选择保存位置',
           fileName: '${widget.novelTitle}_导出.zip',
