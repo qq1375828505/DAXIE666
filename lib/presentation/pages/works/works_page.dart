@@ -165,7 +165,7 @@ class WorksPage extends ConsumerWidget {
             TextButton.icon(
               onPressed: () => _showImportDialog(context, ref),
               icon: const Icon(Icons.file_upload_outlined, size: 18),
-              label: const Text('导入 TXT / MD 文件'),
+              label: const Text('导入 TXT / MD / EPUB 文件'),
             ),
           ],
         ),
@@ -274,14 +274,14 @@ class WorksPage extends ConsumerWidget {
                   ),
                   child: const Icon(Icons.description_outlined, color: AppColors.primary),
                 ),
-                title: const Text('导入 TXT / MD 文件', style: TextStyle(fontSize: 16)),
+                title: const Text('导入 TXT / MD / EPUB 文件', style: TextStyle(fontSize: 16)),
                 subtitle: const Text('自动拆章创建新作品', style: TextStyle(fontSize: 12, color: Colors.grey)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final result = await FilePicker.platform.pickFiles(
                     dialogTitle: '选择小说文件',
                     type: FileType.custom,
-                    allowedExtensions: ['txt', 'md', 'docx', 'novelpack'],
+                    allowedExtensions: ['txt', 'md', 'docx', 'epub', 'novelpack'],
                   );
                   if (result != null && result.files.single.path != null) {
                     final filePath = result.files.single.path!;
@@ -290,7 +290,7 @@ class WorksPage extends ConsumerWidget {
                       if (ext == '.novelpack') {
                         final fs = LocalFileDataSource();
                         await fs.importNovelPack(filePath);
-                      } else if (ext == '.txt' || ext == '.md' || ext == '.docx') {
+                      } else if (ext == '.txt' || ext == '.md' || ext == '.docx' || ext == '.epub') {
                         final service = NovelImportService();
                         final importResult = await service.importFromFile(filePath: filePath);
                         if (!importResult.success) {

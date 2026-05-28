@@ -13,6 +13,7 @@ import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
+import 'package:novel_ide/data/services/epub_export_service.dart';
 
 /// 树节点类型
 enum TreeNodeType { folder, file }
@@ -101,6 +102,7 @@ class _ExportPageState extends State<ExportPage> {
   FileTreeNode? _materialsTree; // 资料区
   bool _isLoading = true;
   String _searchQuery = '';
+  bool _isExportingEpub = false;
 
   // 章节数据（用于生成TXT内容）
   List<Chapter> _allChapters = [];
@@ -258,7 +260,7 @@ class _ExportPageState extends State<ExportPage> {
     });
   }
 
-  /// 执行导出
+  /// 执行导出（dual_track 模式）
   Future<void> _doExport({bool shareOnly = false}) async {
     try {
       final tempDir = await getTemporaryDirectory();
@@ -271,12 +273,19 @@ class _ExportPageState extends State<ExportPage> {
       final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
       final matDir = Directory(p.join(dir.path, 'NovelProjects', '资料区'));
 
+      // ====== workspace/ 目录：当前工作版本 ======
+      final workspaceDir = Directory(p.join(exportDir.path, 'workspace'));
+      await workspaceDir.create(recursive: true);
+
       // 收集所有选中的文件路径
       final selectedPaths = <String>[];
       _worksTree?.collectSelectedFiles(selectedPaths);
       _materialsTree?.collectSelectedFiles(selectedPaths);
 
-      // 处理每个文件，转为TXT
+      // 记录导出的工作文件路径（用于 metadata.json）
+      final exportedWorkspaceFiles = <String>[];
+
+      // 处理每个文件，转为TXT，输出到 workspace/ 下
       for (final relPath in selectedPaths) {
         String content = '';
         String outputName = '';
@@ -355,20 +364,70 @@ class _ExportPageState extends State<ExportPage> {
         }
 
         if (content.isNotEmpty && outputName.isNotEmpty) {
-          final outFile = File(p.join(exportDir.path, outputName));
+          final outFile = File(p.join(workspaceDir.path, outputName));
           await outFile.create(recursive: true);
           await outFile.writeAsString(content);
+          exportedWorkspaceFiles.add('workspace/$outputName');
         }
       }
 
-      // 记忆包（固定导出）
+      // 记忆包（固定导出到 workspace/ 下）
       final memory = NovelMemory(novelId: widget.novelId, novelTitle: widget.novelTitle);
       final memoryContent = await memory.autoUpdate();
-      await File(p.join(exportDir.path, '记忆包', '小说记忆文件.txt'))
+      await File(p.join(workspaceDir.path, '记忆包', '小说记忆文件.txt'))
           .create(recursive: true)
           .then((f) => f.writeAsString(memoryContent));
+      exportedWorkspaceFiles.add('workspace/记忆包/小说记忆文件.txt');
 
-      // 创建 ZIP
+      // ====== original/ 目录：原始导入文件备份 ======
+      final originalBaseDir = Directory(p.join(dir.path, 'NovelProjects', 'original', widget.novelId));
+      final originalFilesMeta = <Map<String, String>>[];
+
+      if (await originalBaseDir.exists()) {
+        final originalEntities = await originalBaseDir.list().where((e) => e is File).toList();
+        if (originalEntities.isNotEmpty) {
+          final originalExportDir = Directory(p.join(exportDir.path, 'original'));
+          await originalExportDir.create(recursive: true);
+
+          for (final entity in originalEntities) {
+            final file = entity as File;
+            final fileName = p.basename(file.path);
+            final bytes = await file.readAsBytes();
+            final outFile = File(p.join(originalExportDir.path, fileName));
+            await outFile.create(recursive: true);
+            await outFile.writeAsBytes(bytes);
+            originalFilesMeta.add({
+              'original': 'original/$fileName',
+              'note': '导入的原始文件',
+            });
+          }
+        }
+      }
+
+      // ====== metadata.json ======
+      final now = DateTime.now();
+      final exportTime = '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')} '
+          '${now.hour.toString().padLeft(2, '0')}:'
+          '${now.minute.toString().padLeft(2, '0')}:'
+          '${now.second.toString().padLeft(2, '0')}';
+
+      final metadata = <String, dynamic>{
+        'novel_title': widget.novelTitle,
+        'export_time': exportTime,
+        'original_files': originalFilesMeta,
+        'workspace_files': {
+          'chapters': 'workspace/作品区/章节/',
+          'materials': 'workspace/资料区/',
+          'memory': 'workspace/记忆包/',
+        },
+      };
+
+      final metadataFile = File(p.join(exportDir.path, 'metadata.json'));
+      await metadataFile.writeAsString(const JsonEncoder.withIndent('  ').convert(metadata));
+
+      // ====== 创建 ZIP ======
       final zipPath = p.join(tempDir.path, '${widget.novelTitle}_导出.zip');
       final encoder = ZipEncoder();
       final archive = Archive();
@@ -412,7 +471,7 @@ class _ExportPageState extends State<ExportPage> {
       if (mounted) {
         final totalSelected = (_worksTree?.countSelected() ?? 0) + (_materialsTree?.countSelected() ?? 0) + 1;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已导出 $totalSelected 个文件（含记忆包）')),
+          SnackBar(content: Text('已导出 $totalSelected 个文件（含记忆包${originalFilesMeta.isNotEmpty ? '及原始备份' : ''}）')),
         );
         Navigator.pop(context);
       }
@@ -422,6 +481,78 @@ class _ExportPageState extends State<ExportPage> {
           SnackBar(content: Text('导出失败: $e')),
         );
       }
+    }
+  }
+
+  /// 导出为 EPUB 电子书
+  Future<void> _doExportEpub() async {
+    setState(() => _isExportingEpub = true);
+    try {
+      final service = EpubExportService();
+
+      // 收集选中的章节ID
+      final selectedPaths = <String>[];
+      _worksTree?.collectSelectedFiles(selectedPaths);
+
+      Set<String>? selectedChapterIds;
+      if (selectedPaths.isNotEmpty) {
+        // 从选中路径中提取章节ID
+        selectedChapterIds = {};
+        for (final relPath in selectedPaths) {
+          if (relPath.startsWith('chapters/')) {
+            final chapterId = p.basename(relPath).replaceAll('.md', '');
+            selectedChapterIds.add(chapterId);
+          }
+        }
+        // 如果没有选中任何章节，则导出全部（null）
+        if (selectedChapterIds.isEmpty) selectedChapterIds = null;
+      }
+
+      final epubPath = await service.exportNovel(
+        novelId: widget.novelId,
+        novelTitle: widget.novelTitle,
+        selectedChapterIds: selectedChapterIds,
+      );
+
+      // 读取生成的文件字节
+      final epubFile = File(epubPath);
+      final epubBytes = await epubFile.readAsBytes();
+
+      // 让用户选择保存位置
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: '保存 EPUB 电子书',
+        fileName: '${widget.novelTitle}.epub',
+        type: FileType.custom,
+        allowedExtensions: ['epub'],
+        bytes: Uint8List.fromList(epubBytes),
+      );
+
+      if (outputPath != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('EPUB 已保存到: $outputPath')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('未选择保存位置')),
+          );
+        }
+      }
+
+      // 清理临时文件
+      try {
+        if (await epubFile.exists()) await epubFile.delete();
+      } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('EPUB 导出失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingEpub = false);
     }
   }
 
@@ -518,7 +649,21 @@ class _ExportPageState extends State<ExportPage> {
                           onPressed: _isLoading ? null : () => _doExport(shareOnly: false),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: _isExportingEpub
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.menu_book),
+                          label: const Text('导出EPUB'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: (_isLoading || _isExportingEpub) ? null : _doExportEpub,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.share),

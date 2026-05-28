@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:archive/archive.dart';
 import 'package:charset/charset.dart';
+import 'package:epubx/epubx.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
@@ -75,6 +76,8 @@ class NovelImportService {
       case '.docx':
         content = await _readDocx(file);
         break;
+      case '.epub':
+        return _previewEpub(file);
       default:
         throw Exception('不支持的文件格式: $ext');
     }
@@ -219,6 +222,13 @@ class NovelImportService {
         case '.docx':
           content = await _readDocx(file);
           break;
+        case '.epub':
+          return _importEpub(
+            novelId: novelId,
+            novelTitle: novelTitle,
+            filePath: filePath,
+            volumeId: volumeId,
+          );
         default:
           return ImportResult(success: false, error: '不支持的文件格式: $ext');
       }
@@ -290,6 +300,18 @@ class NovelImportService {
         'created_at': now,
         'updated_at': now,
       });
+    }
+
+    // 保存原始文件备份（原始不可变原则）
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        final fileBytes = await file.readAsBytes();
+        final fileName = p.basename(filePath);
+        await fs.saveOriginalBackup(actualNovelId, fileName, fileBytes);
+      }
+    } catch (_) {
+      // 备份失败不影响导入流程
     }
 
     final projectPath = await fs.getProjectDir(actualNovelId, actualNovelTitle);
@@ -400,6 +422,174 @@ class NovelImportService {
       totalWords: content.length,
       contentType: contentType,
     );
+  }
+
+  /// 读取 EPUB 文件并提取章节内容（纯文本）
+  Future<String> _readEpubText(File file) async {
+    final bytes = await file.readAsBytes();
+    final book = await EpubReader.readBook(bytes);
+
+    final buffer = StringBuffer();
+
+    // 遍历所有章节
+    if (book.Chapters != null) {
+      for (final chapter in book.Chapters!) {
+        final title = chapter.Title?.trim() ?? '';
+        final content = _extractEpubChapterContent(chapter);
+        if (content.trim().isNotEmpty) {
+          if (title.isNotEmpty) {
+            buffer.writeln(title);
+          }
+          buffer.writeln(content.trim());
+          buffer.writeln();
+        }
+        // 递归处理子章节
+        _collectSubChapters(chapter.SubChapters, buffer);
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  /// 递归收集子章节内容
+  void _collectSubChapters(List<EpubChapter>? chapters, StringBuffer buffer) {
+    if (chapters == null) return;
+    for (final chapter in chapters) {
+      final title = chapter.Title?.trim() ?? '';
+      final content = _extractEpubChapterContent(chapter);
+      if (content.trim().isNotEmpty) {
+        if (title.isNotEmpty) {
+          buffer.writeln(title);
+        }
+        buffer.writeln(content.trim());
+        buffer.writeln();
+      }
+      _collectSubChapters(chapter.SubChapters, buffer);
+    }
+  }
+
+  /// 从 EPUB 章节中提取纯文本内容
+  String _extractEpubChapterContent(EpubChapter chapter) {
+    final buffer = StringBuffer();
+
+    // 读取章节的 HTML 内容
+    if (chapter.HtmlContent != null && chapter.HtmlContent!.isNotEmpty) {
+      buffer.write(_stripHtmlTags(chapter.HtmlContent!));
+    } else if (chapter.ContentFileName != null && chapter.ContentFileName!.isNotEmpty) {
+      // 尝试从 book 的 Content 中按文件名查找
+      // epubx 库通常会将内容解析到 HtmlContent 中
+    }
+
+    return buffer.toString();
+  }
+
+  /// 去除 HTML 标签，提取纯文本
+  String _stripHtmlTags(String html) {
+    // 替换常见 HTML 实体
+    String text = html
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'");
+
+    // 去除 script 和 style 标签及其内容
+    text = text.replaceAll(RegExp(r'<script[^>]*>[\s\S]*?</script>', caseSensitive: false), '');
+    text = text.replaceAll(RegExp(r'<style[^>]*>[\s\S]*?</style>', caseSensitive: false), '');
+
+    // 将块级标签替换为换行
+    text = text.replaceAll(RegExp(r'<br\s*/?\s*>', caseSensitive: false), '\n');
+    text = text.replaceAll(RegExp(r'</(p|div|h[1-6]|li|tr|blockquote)>', caseSensitive: false), '\n');
+    text = text.replaceAll(RegExp(r'<(p|div|h[1-6]|li|tr|blockquote)[^>]*>', caseSensitive: false), '\n');
+
+    // 去除所有剩余 HTML 标签
+    text = text.replaceAll(RegExp(r'<[^>]+>'), '');
+
+    // 清理多余空行
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return text.trim();
+  }
+
+  /// 预览 EPUB 文件（返回 ImportPreview）
+  Future<ImportPreview> _previewEpub(File file) async {
+    final bytes = await file.readAsBytes();
+    final book = await EpubReader.readBook(bytes);
+
+    final chapters = <ParsedChapter>[];
+
+    // 从 EPUB 的章节结构中提取
+    if (book.Chapters != null) {
+      _collectEpubChapters(book.Chapters!, chapters);
+    }
+
+    // 如果没有提取到章节，尝试读取全部文本并按标题拆分
+    if (chapters.isEmpty) {
+      final fullText = await _readEpubText(file);
+      if (fullText.trim().isEmpty) throw Exception('EPUB 文件内容为空');
+      chapters.addAll(_splitChapters(fullText));
+    }
+
+    if (chapters.isEmpty) {
+      final fullText = await _readEpubText(file);
+      chapters.add(ParsedChapter(title: '导入内容', content: fullText.trim()));
+    }
+
+    final totalWords = chapters.fold<int>(0, (sum, ch) => sum + ch.content.length);
+
+    return ImportPreview(
+      contentType: ImportContentType.chapters,
+      detectedType: 'EPUB电子书',
+      matchSource: 'EPUB章节结构',
+      chapters: chapters,
+      totalWords: totalWords,
+    );
+  }
+
+  /// 递归收集 EPUB 章节为 ParsedChapter 列表
+  void _collectEpubChapters(List<EpubChapter> epubChapters, List<ParsedChapter> result) {
+    for (final chapter in epubChapters) {
+      final title = chapter.Title?.trim() ?? '';
+      final content = _extractEpubChapterContent(chapter).trim();
+
+      // 如果有子章节，优先使用子章节结构
+      if (chapter.SubChapters != null && chapter.SubChapters!.isNotEmpty) {
+        // 如果当前章节也有内容，先添加当前章节
+        if (content.isNotEmpty && title.isNotEmpty) {
+          result.add(ParsedChapter(title: title, content: content));
+        }
+        _collectEpubChapters(chapter.SubChapters!, result);
+      } else if (content.isNotEmpty) {
+        // 叶子章节：有内容就添加
+        result.add(ParsedChapter(
+          title: title.isNotEmpty ? title : '未命名章节',
+          content: content,
+        ));
+      }
+    }
+  }
+
+  /// 导入 EPUB 文件
+  Future<ImportResult> _importEpub({
+    String? novelId,
+    String? novelTitle,
+    required String filePath,
+    String? volumeId,
+  }) async {
+    try {
+      final preview = await _previewEpub(File(filePath));
+      return _doImport(
+        novelId: novelId,
+        novelTitle: novelTitle,
+        filePath: filePath,
+        content: preview.chapters.map((c) => '${c.title}\n${c.content}').join('\n\n'),
+        contentType: preview.contentType,
+        chapters: preview.chapters,
+        volumeId: volumeId,
+      );
+    } catch (e) {
+      return ImportResult(success: false, error: 'EPUB 解析失败: $e');
+    }
   }
 
   /// 读取文本文件，自动检测编码（UTF-8 / GBK）

@@ -71,7 +71,7 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              '支持 TXT、MD、DOCX 格式，自动识别章节标题并拆分导入',
+              '支持 TXT、MD、DOCX、EPUB 格式，自动识别章节标题并拆分导入',
               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
           ),
@@ -115,7 +115,7 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
                         const SizedBox(height: 8),
                         Text('点击选择文件', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
                         const SizedBox(height: 4),
-                        Text('TXT / MD / DOCX', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                        Text('TXT / MD / DOCX / EPUB', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
                       ],
                     ),
             ),
@@ -213,7 +213,7 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
     final result = await FilePicker.platform.pickFiles(
       dialogTitle: '选择小说文件',
       type: FileType.custom,
-      allowedExtensions: ['txt', 'md', 'docx'],
+      allowedExtensions: ['txt', 'md', 'docx', 'epub'],
     );
     if (result != null && result.files.single.path != null) {
       setState(() {

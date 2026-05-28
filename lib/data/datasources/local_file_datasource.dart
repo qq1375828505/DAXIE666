@@ -174,6 +174,25 @@ class LocalFileDataSource {
     return p.join(dir.path, '${novelId}_${title}_memory.txt');
   }
 
+  // ===== 原始文件备份 =====
+
+  /// 保存导入文件的原始备份
+  /// 备份路径：NovelProjects/original/{novelId}/{timestamp}_{fileName}
+  /// 返回备份文件路径
+  Future<String> saveOriginalBackup(String novelId, String fileName, List<int> fileBytes) async {
+    final baseDir = await getBaseDir();
+    final originalDir = Directory(p.join(baseDir.path, 'NovelProjects', 'original', novelId));
+    if (!await originalDir.exists()) {
+      await originalDir.create(recursive: true);
+    }
+    // 文件名加时间戳避免重复
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final backupPath = p.join(originalDir.path, '${timestamp}_$fileName');
+    final backupFile = File(backupPath);
+    await backupFile.writeAsBytes(fileBytes);
+    return backupPath;
+  }
+
   // ===== 数据迁移 =====
 
   /// 迁移旧目录结构到新结构（兼容旧版本数据）
