@@ -87,11 +87,17 @@ class AiService {
       if (e.type == DioExceptionType.connectionError) {
         throw Exception('无法连接到服务器，请检查API地址和网络');
       }
-      // 尝试从response body提取更具体的错误信息
-      if (respBody.isNotEmpty && respBody.length < 300) {
-        throw Exception('请求失败 ($statusCode): $respBody');
+      // 尝试从 response body 提取更具体的错误信息
+      if (respBody.isNotEmpty && respBody.length < 500) {
+        throw Exception('API错误 ($statusCode): $respBody');
       }
-      throw Exception('请求失败: ${e.message ?? e.type.name}');
+      if (statusCode != null) {
+        throw Exception('请求失败: HTTP $statusCode');
+      }
+      throw Exception('网络错误: ${e.message ?? "连接异常"}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('未知错误: $e');
     }
   }
 
@@ -120,25 +126,39 @@ class AiService {
   }
 
   Map<String, dynamic> _buildPayload(AiConfig config, List<Map<String, String>> messages) {
-    if (config.protocol == ApiProtocol.anthropic) {
-      final systemMsg = messages.firstWhere(
-        (m) => m['role'] == 'system',
-        orElse: () => {'role': 'user', 'content': ''},
-      );
-      final userMessages = messages.where((m) => m['role'] != 'system').toList();
-      return {
-        'model': config.modelName,
-        'max_tokens': config.maxTokens,
-        'system': systemMsg['content'],
-        'messages': userMessages,
-      };
+    // 所有协议统一：从 messages 中提取 system 消息，作为单独字段传递
+    String? systemContent;
+    final nonSystemMessages = <Map<String, String>>[];
+
+    for (final msg in messages) {
+      if (msg['role'] == 'system' && systemContent == null) {
+        systemContent = msg['content'];
+      } else {
+        nonSystemMessages.add(msg);
+      }
     }
-    return {
+
+    // OpenAI 兼容协议
+    final payload = <String, dynamic>{
       'model': config.modelName,
-      'messages': messages,
+      'messages': nonSystemMessages,
       'temperature': config.temperature,
       'max_tokens': config.maxTokens,
     };
+
+    if (systemContent != null && systemContent.isNotEmpty) {
+      if (config.protocol == ApiProtocol.anthropic) {
+        payload['system'] = systemContent;
+      } else {
+        // OpenAI 兼容：系统提示作为第一条 system message
+        payload['messages'] = [
+          {'role': 'system', 'content': systemContent},
+          ...nonSystemMessages,
+        ];
+      }
+    }
+
+    return payload;
   }
 
   String _parseResponse(AiConfig config, dynamic response) {

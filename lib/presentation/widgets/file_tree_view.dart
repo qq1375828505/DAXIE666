@@ -8,7 +8,8 @@ class FileTreeNode {
   final List<FileTreeNode> children;
   final bool isFolder;
   bool isExpanded;
-  final String? fileType; // 'md', 'txt' 等
+  final String? fileType;
+  final String? parentType; // 'character', 'setting', 'reference', 'location', etc.
 
   FileTreeNode({
     required this.id,
@@ -18,6 +19,7 @@ class FileTreeNode {
     this.isFolder = false,
     this.isExpanded = false,
     this.fileType,
+    this.parentType,
   });
 }
 

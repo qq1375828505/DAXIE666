@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/models/volume_model.dart';
+import 'package:novel_ide/data/models/material_models.dart';
+import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/presentation/pages/writing/editor_page.dart';
 import 'package:novel_ide/presentation/pages/works/novel_import_dialog.dart';
@@ -610,35 +613,140 @@ void _showRenameChapterDialog(BuildContext context, WidgetRef ref, Chapter chapt
 
 
 // ========== 大纲 Tab ==========
-class _OutlineTab extends StatelessWidget {
+class _OutlineTab extends ConsumerWidget {
   final String novelId;
   const _OutlineTab({required this.novelId});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_tree_outlined, size: 56, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            const Text('暂无大纲', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('拥有一份大纲的作品更容易获得成功', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('大纲编辑功能开发中...')),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('创建总纲'),
-            ),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final refs = ref.watch(referencesProvider(novelId));
+    final outlineRefs = refs.where((r) => r.source == '大纲').toList();
+
+    if (outlineRefs.isEmpty && refs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.account_tree_outlined, size: 56, color: Colors.grey[300]),
+              const SizedBox(height: 16),
+              const Text('暂无大纲', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('拥有一份大纲的作品更容易获得成功', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => _showCreateDialog(context, ref),
+                icon: const Icon(Icons.add),
+                label: const Text('创建总纲'),
+              ),
+            ],
+          ),
         ),
+      );
+    }
+
+    final items = outlineRefs.isNotEmpty ? outlineRefs : refs;
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final r = items[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withOpacity(0.1),
+                  child: const Icon(Icons.account_tree, color: Colors.orange),
+                ),
+                title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(r.content ?? '', maxLines: 3, overflow: TextOverflow.ellipsis),
+                onTap: () => _showEditDialog(context, ref, r),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          right: 16, bottom: 16,
+          child: FloatingActionButton.small(
+            onPressed: () => _showCreateDialog(context, ref),
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showCreateDialog(BuildContext context, WidgetRef ref) {
+    final titleCtrl = TextEditingController();
+    final contentCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建大纲'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '标题', hintText: '例如：总纲、分卷大纲')),
+            const SizedBox(height: 12),
+            TextField(controller: contentCtrl, maxLines: 10, decoration: const InputDecoration(labelText: '内容', hintText: '输入大纲内容...')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            if (titleCtrl.text.trim().isEmpty) return;
+            final repo = MaterialRepository();
+            final existing = await repo.getReferences(novelId);
+            final newRef = ReferenceMaterial(
+              id: const Uuid().v4(), novelId: novelId,
+              title: titleCtrl.text.trim(), content: contentCtrl.text,
+              source: '大纲',
+            );
+            existing.add(newRef);
+            await repo.saveReferences(novelId, existing);
+            ref.invalidate(referencesProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('创建')),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref, ReferenceMaterial r) {
+    final titleCtrl = TextEditingController(text: r.title);
+    final contentCtrl = TextEditingController(text: r.content ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(r.title),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '标题')),
+              const SizedBox(height: 12),
+              TextField(controller: contentCtrl, maxLines: 10, decoration: const InputDecoration(labelText: '内容')),
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            final repo = MaterialRepository();
+            final list = await repo.getReferences(novelId);
+            final idx = list.indexWhere((x) => x.id == r.id);
+            if (idx >= 0) {
+              list[idx].title = titleCtrl.text.trim();
+              list[idx].content = contentCtrl.text;
+              await repo.saveReferences(novelId, list);
+            }
+            ref.invalidate(referencesProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('保存')),
+        ],
       ),
     );
   }
@@ -667,11 +775,7 @@ class _CharactersTab extends ConsumerWidget {
               Text('添加角色让故事更丰满', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('请使用导入功能或AI对话创建角色')),
-                  );
-                },
+                onPressed: () => _showCreateDialog(context, ref),
                 icon: const Icon(Icons.add),
                 label: const Text('添加角色'),
               ),
@@ -681,28 +785,111 @@ class _CharactersTab extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        final c = characters[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              child: const Icon(Icons.person, color: AppColors.primary),
-            ),
-            title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(c.description ?? "", maxLines: 2, overflow: TextOverflow.ellipsis),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: 打开角色编辑页
-            },
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: characters.length,
+          itemBuilder: (context, index) {
+            final c = characters[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: const Icon(Icons.person, color: AppColors.primary),
+                ),
+                title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(c.description ?? "", maxLines: 2, overflow: TextOverflow.ellipsis),
+                onTap: () => _showEditDialog(context, ref, c),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          right: 16, bottom: 16,
+          child: FloatingActionButton.small(
+            onPressed: () => _showCreateDialog(context, ref),
+            child: const Icon(Icons.add),
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  void _showCreateDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    final roleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建角色'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '角色名')),
+            const SizedBox(height: 12),
+            TextField(controller: roleCtrl, decoration: const InputDecoration(labelText: '定位', hintText: '例如：主角、反派、配角')),
+            const SizedBox(height: 12),
+            TextField(controller: descCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '描述')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            if (nameCtrl.text.trim().isEmpty) return;
+            final repo = MaterialRepository();
+            final existing = await repo.getCharacters(novelId);
+            final newChar = Character(
+              id: const Uuid().v4(), novelId: novelId,
+              name: nameCtrl.text.trim(), role: roleCtrl.text.trim(),
+              description: descCtrl.text,
+            );
+            existing.add(newChar);
+            await repo.saveCharacters(novelId, existing);
+            ref.invalidate(charactersProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('创建')),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref, Character c) {
+    final nameCtrl = TextEditingController(text: c.name);
+    final roleCtrl = TextEditingController(text: c.role ?? '');
+    final descCtrl = TextEditingController(text: c.description ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(c.name),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '角色名')),
+            const SizedBox(height: 12),
+            TextField(controller: roleCtrl, decoration: const InputDecoration(labelText: '定位')),
+            const SizedBox(height: 12),
+            TextField(controller: descCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '描述')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            final repo = MaterialRepository();
+            final list = await repo.getCharacters(novelId);
+            final idx = list.indexWhere((x) => x.id == c.id);
+            if (idx >= 0) {
+              list[idx].name = nameCtrl.text.trim();
+              list[idx].role = roleCtrl.text.trim();
+              list[idx].description = descCtrl.text;
+              await repo.saveCharacters(novelId, list);
+            }
+            ref.invalidate(charactersProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('保存')),
+        ],
+      ),
     );
   }
 }
@@ -730,11 +917,7 @@ class _SettingsTab extends ConsumerWidget {
               Text('世界观和设定让故事更有深度', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('请使用导入功能或AI对话创建设定')),
-                  );
-                },
+                onPressed: () => _showCreateDialog(context, ref),
                 icon: const Icon(Icons.add),
                 label: const Text('添加设定'),
               ),
@@ -744,25 +927,111 @@ class _SettingsTab extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: settings.length,
-      itemBuilder: (context, index) {
-        final s = settings[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blue.withOpacity(0.1),
-              child: const Icon(Icons.public, color: Colors.blue),
-            ),
-            title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(s.description ?? "", maxLines: 2, overflow: TextOverflow.ellipsis),
-            trailing: const Icon(Icons.chevron_right),
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: settings.length,
+          itemBuilder: (context, index) {
+            final s = settings[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue.withOpacity(0.1),
+                  child: const Icon(Icons.public, color: Colors.blue),
+                ),
+                title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(s.description ?? "", maxLines: 2, overflow: TextOverflow.ellipsis),
+                onTap: () => _showEditDialog(context, ref, s),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          right: 16, bottom: 16,
+          child: FloatingActionButton.small(
+            onPressed: () => _showCreateDialog(context, ref),
+            child: const Icon(Icons.add),
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  void _showCreateDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    final catCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建设定'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '设定名', hintText: '例如：修仙体系、门派势力')),
+            const SizedBox(height: 12),
+            TextField(controller: catCtrl, decoration: const InputDecoration(labelText: '分类', hintText: '例如：世界观、战力体系')),
+            const SizedBox(height: 12),
+            TextField(controller: descCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '内容')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            if (nameCtrl.text.trim().isEmpty) return;
+            final repo = MaterialRepository();
+            final existing = await repo.getSettingCards(novelId);
+            final newSetting = SettingCard(
+              id: const Uuid().v4(), novelId: novelId,
+              name: nameCtrl.text.trim(), category: catCtrl.text.trim(),
+              description: descCtrl.text,
+            );
+            existing.add(newSetting);
+            await repo.saveSettingCards(novelId, existing);
+            ref.invalidate(settingCardsProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('创建')),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref, SettingCard s) {
+    final nameCtrl = TextEditingController(text: s.name);
+    final catCtrl = TextEditingController(text: s.category ?? '');
+    final descCtrl = TextEditingController(text: s.description ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.name),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '设定名')),
+            const SizedBox(height: 12),
+            TextField(controller: catCtrl, decoration: const InputDecoration(labelText: '分类')),
+            const SizedBox(height: 12),
+            TextField(controller: descCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '内容')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            final repo = MaterialRepository();
+            final list = await repo.getSettingCards(novelId);
+            final idx = list.indexWhere((x) => x.id == s.id);
+            if (idx >= 0) {
+              list[idx].name = nameCtrl.text.trim();
+              list[idx].category = catCtrl.text.trim();
+              list[idx].description = descCtrl.text;
+              await repo.saveSettingCards(novelId, list);
+            }
+            ref.invalidate(settingCardsProvider(novelId));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }, child: const Text('保存')),
+        ],
+      ),
     );
   }
 }

@@ -280,11 +280,17 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
 
     if (result.success) {
       setState(() {
-        _statusText = '导入成功！共 ${result.chapterCount} 章，${result.totalWords} 字';
+        final typeLabel = result.contentType == ImportContentType.chapters
+            ? '${result.chapterCount} 章'
+            : '资料${result.totalWords}字';
+        _statusText = '导入成功！共 $typeLabel';
       });
 
-      // 刷新章节列表
+      // 刷新数据
       ref.invalidate(chaptersProvider(widget.novelId));
+      ref.invalidate(referencesProvider(widget.novelId));
+      ref.invalidate(charactersProvider(widget.novelId));
+      ref.invalidate(settingCardsProvider(widget.novelId));
 
       // 自动触发 AI 分析
       await _startAiAnalysis();
@@ -352,28 +358,46 @@ class _NovelImportDialogState extends ConsumerState<NovelImportDialog> {
     }
   }
 
-  /// 获取前 N 章的内容用于 AI 分析
+  /// 获取导入的内容用于 AI 分析（章节 + 资料）
   Future<String> _getChaptersContent({int maxChapters = 10}) async {
-    final chapters = ref.read(chaptersProvider(widget.novelId)).value ?? [];
-    if (chapters.isEmpty) return '';
-
     final buffer = StringBuffer();
-    final take = chapters.length > maxChapters ? maxChapters : chapters.length;
 
+    // 读取章节
+    final chapters = ref.read(chaptersProvider(widget.novelId)).value ?? [];
+    final take = chapters.length > maxChapters ? maxChapters : chapters.length;
     for (int i = 0; i < take; i++) {
       final ch = chapters[i];
       buffer.writeln('=== ${ch.title} ===');
-      // 简单读取章节内容（通过 repository）
       try {
         final repo = ref.read(chapterRepoProvider);
         final fullChapter = await repo.getChapter(ch.id);
         if (fullChapter != null && fullChapter.content.isNotEmpty) {
           buffer.writeln(fullChapter.content);
         }
-      } catch (_) {
-        // 跳过读取失败的章节
-      }
+      } catch (_) {}
       buffer.writeln();
+    }
+
+    // 如果章节为空，读取资料库内容
+    if (buffer.isEmpty) {
+      final refs = ref.read(referencesProvider(widget.novelId));
+      for (final r in refs.take(5)) {
+        buffer.writeln('=== ${r.title} ===');
+        buffer.writeln(r.content ?? '');
+        buffer.writeln();
+      }
+      final chars = ref.read(charactersProvider(widget.novelId));
+      for (final c in chars.take(5)) {
+        buffer.writeln('=== 角色: ${c.name} ===');
+        buffer.writeln(c.description ?? '');
+        buffer.writeln();
+      }
+      final settings = ref.read(settingCardsProvider(widget.novelId));
+      for (final s in settings.take(5)) {
+        buffer.writeln('=== 设定: ${s.name} ===');
+        buffer.writeln(s.description ?? '');
+        buffer.writeln();
+      }
     }
 
     return buffer.toString();

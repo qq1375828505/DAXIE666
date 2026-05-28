@@ -165,6 +165,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('角色'),
         children: characters.map((c) => FileTreeNode(
           id: c.id,
+          parentType: 'character',
           name: '${c.name}${c.role != null ? " · ${c.role}" : ""}.md',
           content: _formatCharacterContent(c),
           fileType: 'md',
@@ -177,6 +178,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('设定'),
         children: settings.map((s) => FileTreeNode(
           id: s.id,
+          parentType: 'setting',
           name: '${s.name}${s.category != null ? " · ${s.category}" : ""}.md',
           content: _formatSettingContent(s),
           fileType: 'md',
@@ -189,6 +191,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('地点'),
         children: locations.map((l) => FileTreeNode(
           id: l.id,
+          parentType: 'location',
           name: '${l.name}${l.category != null ? " · ${l.category}" : ""}.md',
           content: _formatLocationContent(l),
           fileType: 'md',
@@ -201,6 +204,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('势力'),
         children: factions.map((f) => FileTreeNode(
           id: f.id,
+          parentType: 'faction',
           name: '${f.name}${f.category != null ? " · ${f.category}" : ""}.md',
           content: _formatFactionContent(f),
           fileType: 'md',
@@ -213,6 +217,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('道具'),
         children: items.map((i) => FileTreeNode(
           id: i.id,
+          parentType: 'item',
           name: '${i.name}${i.category != null ? " · ${i.category}" : ""}.md',
           content: _formatItemContent(i),
           fileType: 'md',
@@ -225,6 +230,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('伏笔'),
         children: hooks.map((h) => FileTreeNode(
           id: h.id,
+          parentType: 'hook',
           name: '${h.title}.md',
           content: _formatHookContent(h),
           fileType: 'md',
@@ -237,6 +243,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         isExpanded: _expandedNodes.contains('参考'),
         children: references.map((r) => FileTreeNode(
           id: r.id,
+          parentType: 'reference',
           name: '${r.title}.md',
           content: _formatReferenceContent(r),
           fileType: 'md',
@@ -260,6 +267,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         children: [
           FileTreeNode(
             id: 'memory_file',
+            parentType: 'memory',
             name: '小说记忆.md',
             content: memoryContent,
             fileType: 'md',
@@ -449,7 +457,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
               title: const Text('编辑'),
               onTap: () {
                 Navigator.pop(ctx);
-                // TODO: 编辑功能
+                _editNode(node, novelId);
               },
             ),
             ListTile(
@@ -466,9 +474,145 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     );
   }
 
-  void _deleteNode(FileTreeNode node, String novelId) {
-    // 根据节点ID前缀判断类型并删除
-    // TODO: 实现删除逻辑
+  void _editNode(FileTreeNode node, String novelId) async {
+    final nameCtrl = TextEditingController(text: node.name.replaceAll(RegExp(r'\\.[^.]+$'), ''));
+    final contentCtrl = TextEditingController(text: node.content ?? '');
+    final type = node.parentType ?? 'reference';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('编辑${_typeLabel(type)}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (type != 'memory') TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '名称')),
+                const SizedBox(height: 12),
+                TextField(controller: contentCtrl, maxLines: 8, decoration: const InputDecoration(labelText: '内容')),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('保存')),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      await _saveMaterialEdit(node, novelId, nameCtrl.text.trim(), contentCtrl.text, type);
+      _refreshMaterials(novelId);
+    }
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'character': return '角色';
+      case 'setting': return '设定';
+      case 'location': return '地点';
+      case 'faction': return '势力';
+      case 'item': return '道具';
+      case 'hook': return '伏笔';
+      case 'reference': return '参考资料';
+      default: return '内容';
+    }
+  }
+
+  Future<void> _saveMaterialEdit(FileTreeNode node, String novelId, String newName, String newContent, String type) async {
+    final repo = MaterialRepository();
+    switch (type) {
+      case 'character':
+        final list = await repo.getCharacters(novelId);
+        final idx = list.indexWhere((c) => c.id == node.id);
+        if (idx >= 0) { list[idx].name = newName; list[idx].description = newContent; await repo.saveCharacters(novelId, list); }
+        break;
+      case 'setting':
+        final list = await repo.getSettingCards(novelId);
+        final idx = list.indexWhere((s) => s.id == node.id);
+        if (idx >= 0) { list[idx].name = newName; list[idx].description = newContent; await repo.saveSettingCards(novelId, list); }
+        break;
+      case 'reference':
+        final list = await repo.getReferences(novelId);
+        final idx = list.indexWhere((r) => r.id == node.id);
+        if (idx >= 0) { list[idx].title = newName; list[idx].content = newContent; await repo.saveReferences(novelId, list); }
+        break;
+      case 'location':
+        final list = await repo.getLocations(novelId);
+        final idx = list.indexWhere((l) => l.id == node.id);
+        if (idx >= 0) { list[idx].name = newName; list[idx].description = newContent; await repo.saveLocations(novelId, list); }
+        break;
+      case 'faction':
+        final list = await repo.getFactions(novelId);
+        final idx = list.indexWhere((f) => f.id == node.id);
+        if (idx >= 0) { list[idx].name = newName; list[idx].description = newContent; await repo.saveFactions(novelId, list); }
+        break;
+      case 'item':
+        final list = await repo.getItems(novelId);
+        final idx = list.indexWhere((i) => i.id == node.id);
+        if (idx >= 0) { list[idx].name = newName; list[idx].description = newContent; await repo.saveItems(novelId, list); }
+        break;
+    }
+  }
+
+  void _refreshMaterials(String novelId) {
+    loadNovelMaterials(ref, novelId);
+    setState(() {});
+  }
+
+  void _deleteNode(FileTreeNode node, String novelId) async {
+    final type = node.parentType ?? 'reference';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除「${node.name}」吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final repo = MaterialRepository();
+      switch (type) {
+        case 'character':
+          final list = await repo.getCharacters(novelId);
+          list.removeWhere((c) => c.id == node.id);
+          await repo.saveCharacters(novelId, list);
+          break;
+        case 'setting':
+          final list = await repo.getSettingCards(novelId);
+          list.removeWhere((s) => s.id == node.id);
+          await repo.saveSettingCards(novelId, list);
+          break;
+        case 'reference':
+          final list = await repo.getReferences(novelId);
+          list.removeWhere((r) => r.id == node.id);
+          await repo.saveReferences(novelId, list);
+          break;
+        case 'location':
+          final list = await repo.getLocations(novelId);
+          list.removeWhere((l) => l.id == node.id);
+          await repo.saveLocations(novelId, list);
+          break;
+        case 'faction':
+          final list = await repo.getFactions(novelId);
+          list.removeWhere((f) => f.id == node.id);
+          await repo.saveFactions(novelId, list);
+          break;
+        case 'item':
+          final list = await repo.getItems(novelId);
+          list.removeWhere((i) => i.id == node.id);
+          await repo.saveItems(novelId, list);
+          break;
+      }
+      _refreshMaterials(novelId);
+    }
   }
 
   void _showAddMenu(String novelId) {
