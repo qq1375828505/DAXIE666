@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:archive/archive.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:novel_ide/data/models/writing_skill_model.dart';
@@ -223,14 +224,22 @@ class _SkillManagePageState extends ConsumerState<SkillManagePage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['md', 'txt', 'json', 'wode'],
+        allowedExtensions: ['md', 'txt', 'json', 'docx'],
       );
       if (result == null || result.files.isEmpty) return;
 
       final file = File(result.files.first.path!);
-      final content = await file.readAsString();
       final fileName = result.files.first.name;
-      final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(md|txt|json|wode)$'), '');
+      final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(md|txt|json|docx)$'), '');
+      
+      // 读取文件内容
+      String content;
+      if (fileName.endsWith('.docx')) {
+        // docx 是 zip 格式，需要解压读取
+        content = await _readDocxContent(file);
+      } else {
+        content = await file.readAsString();
+      }
 
       // 尝试解析为JSON，否则作为纯文本处理
       Map<String, dynamic>? skillData;
@@ -262,6 +271,26 @@ class _SkillManagePageState extends ConsumerState<SkillManagePage> {
         );
       }
     }
+  }
+
+  /// 读取 docx 文件的文本内容
+  Future<String> _readDocxContent(File file) async {
+    final bytes = await file.readAsBytes();
+    final archive = ArchiveDecoder().decodeBytes(bytes);
+    
+    // 查找 word/document.xml
+    for (final file in archive) {
+      if (file.name == 'word/document.xml') {
+        final content = String.fromCharCodes(file.content as List<int>);
+        // 简单提取文本内容（去除XML标签）
+        final text = content
+            .replaceAll(RegExp(r'<[^>]+>'), ' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        return text;
+      }
+    }
+    throw Exception('无法读取 docx 文件内容');
   }
 
   void _showSkillDetail(WritingSkill skill) {

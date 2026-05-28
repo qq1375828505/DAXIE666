@@ -44,7 +44,7 @@ class DefaultConfigService {
   static Future<void> initDefaultConfig() async {
     try {
       final db = DatabaseHelper();
-      final configs = await db.getAiConfigs();
+      final configs = await db.getAllAiConfigs();
 
       // 如果已有配置，不覆盖
       if (configs.isNotEmpty) return;
