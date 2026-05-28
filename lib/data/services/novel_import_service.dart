@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:archive/archive.dart';
+import 'package:charset/charset.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
@@ -35,10 +36,8 @@ class NovelImportService {
     try {
       switch (ext) {
         case '.txt':
-          content = await file.readAsString();
-          break;
         case '.md':
-          content = await file.readAsString();
+          content = await _readTextFile(file);
           break;
         case '.docx':
           content = await _readDocx(file);
@@ -163,6 +162,29 @@ class NovelImportService {
     );
   }
 
+  /// 读取文本文件，自动检测编码（UTF-8 / GBK）
+  Future<String> _readTextFile(File file) async {
+    final bytes = await file.readAsBytes();
+
+    // 先尝试 UTF-8 解码
+    final utf8Result = utf8.decode(bytes, allowMalformed: false);
+
+    // 检查是否包含 UTF-8 替换字符（U+FFFD），有则说明不是合法 UTF-8
+    if (!utf8Result.contains('�')) {
+      return utf8Result;
+    }
+
+    // 回退到 GBK 解码
+    try {
+      final gbkResult = gbk.decode(bytes);
+      if (gbkResult.isNotEmpty) return gbkResult;
+    } catch (_) {}
+
+    // 都失败了，用 allowMalformed 兜底
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+
+
   /// 读取 DOCX 文件内容
   Future<String> _readDocx(File file) async {
     // 使用 docx_text_extractor 包
@@ -179,24 +201,26 @@ class NovelImportService {
 
   /// 手动解析 DOCX（从 word/document.xml 提取文本）
   Future<String> _extractDocxText(List<int> bytes) async {
-    final archive = Archive();
-    // 使用 archive 包解压
     final decoder = ZipDecoder();
     final decoded = decoder.decodeBytes(bytes);
 
-    String xmlContent = '';
+    ArchiveFile? docXmlFile;
     for (final file in decoded) {
       if (file.name == 'word/document.xml') {
-        xmlContent = String.fromCharCodes(file.content);
+        docXmlFile = file;
         break;
       }
     }
 
-    if (xmlContent.isEmpty) {
+    if (docXmlFile == null) {
       throw Exception('无法找到 word/document.xml');
     }
 
-    // 简单提取 <w:t> 标签中的文本
+    // 正确解码 UTF-8 字节流，而非逐字节转码
+    final contentBytes = docXmlFile.content as List<int>;
+    final xmlContent = utf8.decode(contentBytes, allowMalformed: true);
+
+    // 提取 <w:t> 标签中的文本
     final buffer = StringBuffer();
     final regex = RegExp(r'<w:t[^>]*>([^<]*)</w:t>');
     for (final match in regex.allMatches(xmlContent)) {
