@@ -10,6 +10,7 @@ import 'package:novel_ide/presentation/state/app_providers.dart';
 import 'package:novel_ide/data/services/notification_service.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
+import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/presentation/pages/ai/ai_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/search_drawer.dart';
 import 'package:novel_ide/presentation/pages/ai/setting_reminder_page.dart';
@@ -133,9 +134,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (chapter != null) {
       _currentChapter = chapter;
       _controller.text = chapter.content;
-      _lastSavedWordCount = chapter.wordCount;
+      // 用实际内容长度初始化字数，而非数据库的wordCount（可能不一致）
+      final actualWordCount = chapter.content.length;
+      _lastSavedWordCount = actualWordCount;
       ref.read(editorContentProvider.notifier).state = chapter.content;
-      ref.read(wordCountProvider.notifier).state = chapter.wordCount;
+      ref.read(wordCountProvider.notifier).state = actualWordCount;
       ref.read(saveStatusProvider.notifier).state = '已保存';
     }
   }
@@ -474,16 +477,30 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     super.dispose();
   }
 
-  /// dispose 时强制保存到文件系统（不依赖 Riverpod）
+  /// dispose 时强制保存（同时更新文件和数据库word_count）
+  /// 直接使用DatabaseHelper，不依赖Riverpod（dispose后ref可能失效）
   Future<void> _forceSaveOnDispose() async {
     try {
       final content = _controller.text;
       if (content.isEmpty) return;
+      // 1. 保存文件
       final novel = ref.read(selectedNovelProvider);
       if (novel == null) return;
       final fs = LocalFileDataSource();
       final projectPath = await fs.getProjectDir(widget.novelId, novel.title);
       await fs.saveChapterContent(projectPath, widget.chapterId, content);
+      // 2. 更新数据库word_count（不依赖ref）
+      final db = DatabaseHelper();
+      final database = await db.database;
+      await database.update(
+        'chapters',
+        {
+          'word_count': content.length,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [widget.chapterId],
+      );
     } catch (e) {
       debugPrint('dispose 强制保存失败: $e');
     }
