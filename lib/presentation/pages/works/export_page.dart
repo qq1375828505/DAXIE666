@@ -14,6 +14,7 @@ import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/epub_export_service.dart';
+import 'package:novel_ide/data/services/docx_export_service.dart';
 
 /// 树节点类型
 enum TreeNodeType { folder, file }
@@ -103,6 +104,7 @@ class _ExportPageState extends State<ExportPage> {
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isExportingEpub = false;
+  bool _isExportingDocx = false;
 
   // 章节数据（用于生成TXT内容）
   List<Chapter> _allChapters = [];
@@ -556,6 +558,78 @@ class _ExportPageState extends State<ExportPage> {
     }
   }
 
+  /// 导出为 DOCX 文档
+  Future<void> _doExportDocx() async {
+    setState(() => _isExportingDocx = true);
+    try {
+      final service = DocxExportService();
+
+      // 收集选中的章节ID
+      final selectedPaths = <String>[];
+      _worksTree?.collectSelectedFiles(selectedPaths);
+
+      Set<String>? selectedChapterIds;
+      if (selectedPaths.isNotEmpty) {
+        // 从选中路径中提取章节ID
+        selectedChapterIds = {};
+        for (final relPath in selectedPaths) {
+          if (relPath.startsWith('chapters/')) {
+            final chapterId = p.basename(relPath).replaceAll('.md', '');
+            selectedChapterIds.add(chapterId);
+          }
+        }
+        // 如果没有选中任何章节，则导出全部（null）
+        if (selectedChapterIds.isEmpty) selectedChapterIds = null;
+      }
+
+      final docxPath = await service.exportNovel(
+        novelId: widget.novelId,
+        novelTitle: widget.novelTitle,
+        selectedChapterIds: selectedChapterIds,
+      );
+
+      // 读取生成的文件字节
+      final docxFile = File(docxPath);
+      final docxBytes = await docxFile.readAsBytes();
+
+      // 让用户选择保存位置
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: '保存 DOCX 文档',
+        fileName: '${widget.novelTitle}.docx',
+        type: FileType.custom,
+        allowedExtensions: ['docx'],
+        bytes: Uint8List.fromList(docxBytes),
+      );
+
+      if (outputPath != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('DOCX 已保存到: $outputPath')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('未选择保存位置')),
+          );
+        }
+      }
+
+      // 清理临时文件
+      try {
+        if (await docxFile.exists()) await docxFile.delete();
+      } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('DOCX 导出失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingDocx = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalSelected = (_worksTree?.countSelected() ?? 0) + (_materialsTree?.countSelected() ?? 0) + 1;
@@ -636,43 +710,68 @@ class _ExportPageState extends State<ExportPage> {
                     color: Theme.of(context).cardColor,
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.save_alt),
-                          label: Text('保存到本地 ($totalSelected项)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                      // 第一行：保存到本地 + 分享
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.save_alt),
+                              label: Text('保存到本地 ($totalSelected项)'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: _isLoading ? null : () => _doExport(shareOnly: false),
+                            ),
                           ),
-                          onPressed: _isLoading ? null : () => _doExport(shareOnly: false),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.share),
+                              label: const Text('分享'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: _isLoading ? null : () => _doExport(shareOnly: true),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: _isExportingEpub
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.menu_book),
-                          label: const Text('导出EPUB'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                      const SizedBox(height: 8),
+                      // 第二行：导出EPUB + 导出DOCX
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: _isExportingEpub
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.menu_book),
+                              label: const Text('导出EPUB'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: (_isLoading || _isExportingEpub) ? null : _doExportEpub,
+                            ),
                           ),
-                          onPressed: (_isLoading || _isExportingEpub) ? null : _doExportEpub,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.share),
-                          label: const Text('分享'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: _isExportingDocx
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.description),
+                              label: const Text('导出DOCX'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.indigo,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: (_isLoading || _isExportingDocx) ? null : _doExportDocx,
+                            ),
                           ),
-                          onPressed: _isLoading ? null : () => _doExport(shareOnly: true),
-                        ),
+                        ],
                       ),
                     ],
                   ),
