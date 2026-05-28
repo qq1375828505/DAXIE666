@@ -104,6 +104,13 @@ class MainActivity : FlutterActivity() {
                             } catch (_: Exception) {}
                         }
                     }
+                    override fun onError(utteranceId: String?, errorCode: Int) {
+                        runOnUiThread {
+                            try {
+                                channel.invokeMethod("onSpeakingDone", null)
+                            } catch (_: Exception) {}
+                        }
+                    }
                 })
                 // 初始化音频路由
                 initAudioRoute()
