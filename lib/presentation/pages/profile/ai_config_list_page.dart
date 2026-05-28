@@ -201,7 +201,7 @@ class AiConfigListPage extends ConsumerWidget {
               const SizedBox(height: 12),
               TextField(controller: modelCtrl, decoration: const InputDecoration(labelText: '模型 ID', prefixIcon: Icon(Icons.memory))),
               const SizedBox(height: 12),
-              TextField(controller: keyCtrl, decoration: const InputDecoration(labelText: 'API Key', prefixIcon: Icon(Icons.key), obscureText: true)),
+              TextField(controller: keyCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'API Key', prefixIcon: Icon(Icons.key))),
             ],
           ),
         ),
