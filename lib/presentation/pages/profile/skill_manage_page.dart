@@ -276,12 +276,12 @@ class _SkillManagePageState extends ConsumerState<SkillManagePage> {
   /// 读取 docx 文件的文本内容
   Future<String> _readDocxContent(File file) async {
     final bytes = await file.readAsBytes();
-    final archive = ArchiveDecoder().decodeBytes(bytes);
+    final archive = ZipDecoder().decodeBytes(bytes);
     
     // 查找 word/document.xml
-    for (final file in archive) {
-      if (file.name == 'word/document.xml') {
-        final content = String.fromCharCodes(file.content as List<int>);
+    for (final archiveFile in archive) {
+      if (archiveFile.name == 'word/document.xml') {
+        final content = String.fromCharCodes(archiveFile.content as List<int>);
         // 简单提取文本内容（去除XML标签）
         final text = content
             .replaceAll(RegExp(r'<[^>]+>'), ' ')
