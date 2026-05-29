@@ -9,6 +9,51 @@ import 'package:novel_ide/data/services/outline_generator_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:novel_ide/presentation/widgets/file_tree_view.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart' hide FileTreeNode;
+import 'package:novel_ide/presentation/pages/materials/material_editor_page.dart';
+
+/// 自定义文件夹
+class CustomMaterialFolder {
+  final String id;
+  final String name;
+  final List<CustomMaterialItem> items;
+
+  CustomMaterialFolder({required this.id, required this.name, List<CustomMaterialItem>? items})
+      : items = items ?? [];
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'items': items.map((i) => i.toJson()).toList(),
+  };
+
+  factory CustomMaterialFolder.fromJson(Map<String, dynamic> json) => CustomMaterialFolder(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    items: (json['items'] as List<dynamic>?)?.map((i) => CustomMaterialItem.fromJson(i as Map<String, dynamic>)).toList() ?? [],
+  );
+}
+
+/// 自定义资料条目
+class CustomMaterialItem {
+  final String id;
+  String title;
+  String content;
+  String? category;
+
+  CustomMaterialItem({required this.id, required this.title, required this.content, this.category});
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'content': content, 'category': category};
+
+  factory CustomMaterialItem.fromJson(Map<String, dynamic> json) => CustomMaterialItem(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    content: json['content'] as String? ?? '',
+    category: json['category'] as String?,
+  );
+}
+
+/// 自定义文件夹 Provider
+final customFoldersProvider = StateProvider<List<CustomMaterialFolder>>((ref) => []);
 
 /// 新版资料库页面 - 层级文件树展示
 class MaterialsTreePage extends ConsumerStatefulWidget {
@@ -61,6 +106,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     final items = ref.watch(itemsProvider(selectedNovel.id));
     final hooks = ref.watch(plotHooksProvider(selectedNovel.id));
     final references = ref.watch(referencesProvider(selectedNovel.id));
+    final customFolders = ref.watch(customFoldersProvider);
 
     // 构建文件树
     final treeNodes = _buildFileTree(
@@ -72,6 +118,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
       hooks: hooks,
       references: references,
       memoryContent: _memoryContent,
+      customFolders: customFolders,
     );
 
     return Scaffold(
@@ -98,14 +145,8 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
       ),
       body: FileTreeView(
         nodes: treeNodes,
-        onNodeTap: (node) {
-          if (!node.isFolder) {
-            _showContentPreview(node);
-          }
-        },
-        onNodeLongPress: (node) {
-          _showNodeOptions(node, selectedNovel.id);
-        },
+        onNodeTap: (node) => _handleNodeTap(node, selectedNovel.id),
+        onNodeLongPress: (node) => _handleNodeLongPress(node, selectedNovel.id),
         onToggleExpand: (node) {
           setState(() {
             if (_expandedNodes.contains(node.name)) {
@@ -153,6 +194,7 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     required List<PlotHook> hooks,
     required List<ReferenceMaterial> references,
     required String memoryContent,
+    required List<CustomMaterialFolder> customFolders,
   }) {
     return [
       FileTreeNode(
@@ -255,6 +297,24 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
           isExpanded: _expandedNodes.contains('大纲'),
           children: _outlineNodesToTreeNodes(_outlineNodes),
         ),
+      // 自定义文件夹
+      ...customFolders.map((folder) => FileTreeNode(
+        id: 'custom_${folder.id}',
+        name: '${folder.name} (${folder.items.length})',
+        isFolder: true,
+        isExpanded: _expandedNodes.contains(folder.name),
+        icon: Icons.folder,
+        iconColor: Colors.teal,
+        children: folder.items.map((item) => FileTreeNode(
+          id: 'custom_item_${item.id}',
+          parentType: 'custom_${folder.id}',
+          name: '${item.title}.md',
+          content: item.content,
+          icon: Icons.description,
+          iconColor: Colors.teal[300],
+          fileType: 'md',
+        )).toList(),
+      )),
       // 记忆包
       FileTreeNode(
         id: 'folder_memory',
@@ -421,24 +481,194 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     );
   }
 
-  void _showContentPreview(FileTreeNode node) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(node.name, style: const TextStyle(fontSize: 16)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: SelectableText(
-              node.content?.isNotEmpty == true ? node.content! : '无内容',
-              style: const TextStyle(fontSize: 14, height: 1.6),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
-        ],
+  /// 点击节点 → 打开编辑器或展开文件夹
+  void _handleNodeTap(FileTreeNode node, String novelId) {
+    if (node.isFolder) {
+      // 展开/折叠由 FileTreeView 的 onToggleExpand 处理
+      return;
+    }
+    // 打开全页编辑器
+    final type = node.parentType ?? 'reference';
+    final cleanName = node.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => MaterialEditorPage(
+        title: cleanName,
+        content: node.content ?? '',
+        materialType: _typeLabel(type),
+        materialId: node.id,
+        category: _getCategoryFromNode(node),
+        onSave: (newTitle, newContent) => _saveFromEditor(node, novelId, type, newTitle, newContent),
       ),
+    )).then((_) {
+      _refreshMaterials(novelId);
+      setState(() {});
+    });
+  }
+
+  String? _getCategoryFromNode(FileTreeNode node) {
+    if (node.parentType?.startsWith('custom_') == true) return '自定义';
+    return null;
+  }
+
+  void _saveFromEditor(FileTreeNode node, String novelId, String type, String newTitle, String newContent) {
+    if (type.startsWith('custom_')) {
+      final folderId = type.replaceFirst('custom_', '');
+      final folders = ref.read(customFoldersProvider);
+      final folderIdx = folders.indexWhere((f) => f.id == folderId);
+      if (folderIdx >= 0) {
+        final items = List<CustomMaterialItem>.from(folders[folderIdx].items);
+        final itemIdx = items.indexWhere((i) => i.id == node.id);
+        if (itemIdx >= 0) {
+          items[itemIdx] = CustomMaterialItem(id: node.id, title: newTitle, content: newContent, category: items[itemIdx].category);
+          final updated = List<CustomMaterialFolder>.from(folders);
+          updated[folderIdx] = CustomMaterialFolder(id: folders[folderIdx].id, name: folders[folderIdx].name, items: items);
+          ref.read(customFoldersProvider.notifier).state = updated;
+        }
+      }
+      return;
+    }
+    _saveMaterialEdit(node, novelId, newTitle, newContent, type);
+  }
+
+  /// 长按节点 → 编辑/删除菜单
+  void _handleNodeLongPress(FileTreeNode node, String novelId) {
+    final type = node.parentType ?? 'reference';
+
+    // 自定义文件夹的长按
+    if (node.id.startsWith('custom_folder_')) {
+      final folderId = node.id.replaceFirst('custom_folder_', '');
+      _showCustomFolderMenu(node, folderId, novelId);
+      return;
+    }
+
+    // 自定义文件夹内条目的长按
+    if (type.startsWith('custom_')) {
+      _showCustomItemMenu(node, type, novelId);
+      return;
+    }
+
+    // 预置类型的长按
+    _showNodeOptions(node, novelId);
+  }
+
+  void _showCustomFolderMenu(FileTreeNode node, String folderId, String novelId) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: Icon(Icons.note_add, color: Colors.teal),
+          title: const Text('添加条目'),
+          onTap: () { Navigator.pop(ctx); _showAddItemToCustomFolderDialog(folderId); },
+        ),
+        ListTile(
+          leading: const Icon(Icons.edit),
+          title: const Text('重命名文件夹'),
+          onTap: () { Navigator.pop(ctx); _showRenameCustomFolderDialog(folderId, novelId); },
+        ),
+        ListTile(
+          leading: Icon(Icons.delete, color: Colors.red[400]),
+          title: Text('删除文件夹', style: TextStyle(color: Colors.red[400])),
+          onTap: () async {
+            Navigator.pop(ctx);
+            final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+              title: const Text('删除文件夹？'),
+              content: const Text('文件夹内所有内容将被删除'),
+              actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('取消')),
+                FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(c, true), child: const Text('删除'))],
+            ));
+            if (confirm == true) {
+              ref.read(customFoldersProvider.notifier).state = ref.read(customFoldersProvider).where((f) => f.id != folderId).toList();
+              setState(() {});
+            }
+          },
+        ),
+      ])),
+    );
+  }
+
+  void _showAddItemToCustomFolderDialog(String folderId) {
+    final titleCtrl = TextEditingController();
+    final contentCtrl = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('添加条目'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '标题')),
+          const SizedBox(height: 12),
+          TextField(controller: contentCtrl, maxLines: 8, decoration: const InputDecoration(labelText: '内容')),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(onPressed: () {
+          if (titleCtrl.text.trim().isEmpty) return;
+          final item = CustomMaterialItem(
+            id: const Uuid().v4(),
+            title: titleCtrl.text.trim(),
+            content: contentCtrl.text,
+          );
+          final folders = List<CustomMaterialFolder>.from(ref.read(customFoldersProvider));
+          final fi = folders.indexWhere((f) => f.id == folderId);
+          if (fi >= 0) {
+            folders[fi] = CustomMaterialFolder(id: folders[fi].id, name: folders[fi].name, items: [...folders[fi].items, item]);
+            ref.read(customFoldersProvider.notifier).state = folders;
+          }
+          Navigator.pop(ctx);
+          setState(() {});
+        }, child: const Text('添加')),
+      ],
+    ));
+  }
+
+  void _showRenameCustomFolderDialog(String folderId, String novelId) {
+    final folders = ref.read(customFoldersProvider);
+    final folder = folders.firstWhere((f) => f.id == folderId);
+    final ctrl = TextEditingController(text: folder.name);
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('重命名文件夹'),
+      content: TextField(controller: ctrl, autofocus: true),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(onPressed: () {
+          if (ctrl.text.trim().isEmpty) return;
+          final updated = ref.read(customFoldersProvider).map((f) =>
+            f.id == folderId ? CustomMaterialFolder(id: f.id, name: ctrl.text.trim(), items: f.items) : f
+          ).toList();
+          ref.read(customFoldersProvider.notifier).state = updated;
+          Navigator.pop(ctx);
+          setState(() {});
+        }, child: const Text('确定'))],
+    ));
+  }
+
+  void _showCustomItemMenu(FileTreeNode node, String type, String novelId) {
+    final folderId = type.replaceFirst('custom_', '');
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: const Icon(Icons.edit), title: const Text('编辑'), onTap: () { Navigator.pop(ctx); _handleNodeTap(node, novelId); }),
+        ListTile(leading: Icon(Icons.delete, color: Colors.red[400]), title: Text('删除', style: TextStyle(color: Colors.red[400])),
+          onTap: () async {
+            Navigator.pop(ctx);
+            final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+              title: const Text('删除？'), content: Text('确定删除「${node.name}」？'),
+              actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('取消')),
+                FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(c, true), child: const Text('删除'))],
+            ));
+            if (confirm == true) {
+              final folders = List<CustomMaterialFolder>.from(ref.read(customFoldersProvider));
+              final fi = folders.indexWhere((f) => f.id == folderId);
+              if (fi >= 0) {
+                final items = List<CustomMaterialItem>.from(folders[fi].items)..removeWhere((i) => i.id == node.id);
+                folders[fi] = CustomMaterialFolder(id: folders[fi].id, name: folders[fi].name, items: items);
+                ref.read(customFoldersProvider.notifier).state = folders;
+                setState(() {});
+              }
+            }
+          },
+        ),
+      ])),
     );
   }
 
@@ -612,6 +842,36 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
     }
   }
 
+  void _showNewFolderDialog() {
+    final ctrl = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('新建文件夹'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        decoration: InputDecoration(labelText: '文件夹名称', hintText: '例如：世界观设定集'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(onPressed: () {
+          if (ctrl.text.trim().isEmpty) return;
+          final folder = CustomMaterialFolder(
+            id: const Uuid().v4(),
+            name: ctrl.text.trim(),
+          );
+          ref.read(customFoldersProvider.notifier).state = [
+            ...ref.read(customFoldersProvider),
+            folder,
+          ];
+          _expandedNodes.add(ctrl.text.trim());
+          Navigator.pop(ctx);
+          setState(() {});
+        }, child: const Text('创建')),
+      ],
+    ));
+  }
+
   void _showAddMenu(String novelId) {
     showModalBottomSheet(
       context: context,
@@ -619,6 +879,13 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: Icon(Icons.create_new_folder, color: Colors.teal),
+              title: const Text('新建文件夹'),
+              subtitle: const Text('创建自定义分类'),
+              onTap: () { Navigator.pop(ctx); _showNewFolderDialog(); },
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.person_add),
               title: const Text('添加角色'),
