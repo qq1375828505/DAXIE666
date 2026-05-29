@@ -14,7 +14,7 @@ class CostTracker {
   }) async {
     final db = await _db.database;
     await db.insert('billing_records', {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'id': '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch % 10000}',
       'config_id': configId,
       'model': model,
       'task_type': taskType,

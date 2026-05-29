@@ -141,6 +141,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (chapter != null) {
       _currentChapter = chapter;
       _controller.text = chapter.content;
+      _undoStack.add(chapter.content); // 初始内容加入undo栈，防止无法恢复原文
       // 用实际内容长度初始化字数，而非数据库的wordCount（可能不一致）
       final actualWordCount = chapter.content.length;
       _lastSavedWordCount = actualWordCount;
@@ -738,6 +739,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               chapterId: widget.chapterId,
               controller: _controller,
               onClose: () => setState(() => _showAiDrawer = false),
+              onSave: () => _onTextChanged(_controller.text),
             )
           : _showSearchDrawer
               ? SearchDrawer(
@@ -776,7 +778,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               if (newText != text) {
                 _recordHistory();
                 _controller.text = newText;
-                _saveChapter();
+                _onTextChanged(newText); // 触发自动保存 + 更新字数
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('已替换 ${findCtrl.text.allMatches(text).length} 处')),
@@ -817,6 +819,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   final newText = text.replaceRange(sel.start, sel.end, w);
                   _controller.text = newText;
                   _controller.selection = TextSelection.collapsed(offset: sel.start + w.length);
+                  _recordHistory();
+                  _onTextChanged(newText);
                   Navigator.pop(ctx);
                 },
               )).toList(),

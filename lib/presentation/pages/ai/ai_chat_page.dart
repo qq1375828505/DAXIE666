@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -516,6 +517,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
             setState(() {
               _currentSession = session;
               _showHistory = false;
+              _skillMatches.clear(); // 切换对话时清空旧skill记录
             });
           },
         );
@@ -1004,12 +1006,18 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
       allowedExtensions: ['txt', 'md', 'docx'],
     );
     if (result != null && result.files.single.path != null) {
-      // 将文件内容作为消息发送到 AI 对话
       final file = result.files.single;
       final name = file.name;
-      setState(() {
-        _inputCtrl.text = '[文件] $name\n请分析这个文件的内容';
-      });
+      try {
+        final content = await File(file.path!).readAsString();
+        setState(() {
+          _inputCtrl.text = '[文件: $name]\n$content\n\n请分析以上文件内容';
+        });
+      } catch (e) {
+        setState(() {
+          _inputCtrl.text = '[文件: $name]\n读取失败: $e\n请分析这个文件的内容';
+        });
+      }
     }
   }
 }

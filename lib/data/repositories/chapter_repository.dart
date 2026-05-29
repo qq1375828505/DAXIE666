@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as p;
 import 'package:novel_ide/data/datasources/database_helper.dart';
 import 'package:novel_ide/data/datasources/local_file_datasource.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
@@ -137,6 +139,20 @@ class ChapterRepository {
 
   Future<void> deleteChapter(String chapterId) async {
     final db = await _db.database;
+    // 同时删除文件系统上的 .md 文件
+    try {
+      final maps = await db.query('chapters', where: 'id = ?', whereArgs: [chapterId]);
+      if (maps.isNotEmpty) {
+        final novelId = maps.first['novel_id'] as String;
+        final novelMaps = await db.query('novels', where: 'id = ?', whereArgs: [novelId]);
+        if (novelMaps.isNotEmpty) {
+          final novelTitle = novelMaps.first['title'] as String;
+          final projectPath = await _fs.getProjectDir(novelId, novelTitle);
+          final file = File(p.join(projectPath, 'chapters', '$chapterId.md'));
+          if (await file.exists()) await file.delete();
+        }
+      }
+    } catch (_) {}
     await db.delete('chapters', where: 'id = ?', whereArgs: [chapterId]);
   }
 

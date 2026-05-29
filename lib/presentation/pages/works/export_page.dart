@@ -434,7 +434,7 @@ class _ExportPageState extends State<ExportPage> {
       final archive = Archive();
       await for (final entity in exportDir.list(recursive: true)) {
         if (entity is File) {
-          final relativePath = p.relative(entity.path, from: exportDir.path);
+          final relativePath = p.relative(entity.path, from: exportDir.path).replaceAll('\\', '/');
           final bytes = await entity.readAsBytes();
           archive.addFile(ArchiveFile(relativePath, bytes.length, bytes));
         }

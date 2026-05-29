@@ -17,6 +17,8 @@ class AiDrawer extends ConsumerStatefulWidget {
   final String chapterId;
   final TextEditingController controller;
   final VoidCallback onClose;
+  /// 插入文本后触发的保存回调（编辑器传入）
+  final VoidCallback? onSave;
 
   const AiDrawer({
     super.key,
@@ -24,6 +26,7 @@ class AiDrawer extends ConsumerStatefulWidget {
     required this.chapterId,
     required this.controller,
     required this.onClose,
+    this.onSave,
   });
 
   @override
@@ -100,9 +103,14 @@ class _AiDrawerState extends ConsumerState<AiDrawer> {
   void _insertToEditor(String text) {
     final current = widget.controller.text;
     final selection = widget.controller.selection;
-    final newText = current.substring(0, selection.start) + text + current.substring(selection.end);
+    final start = selection.start.clamp(0, current.length);
+    final end = selection.end.clamp(0, current.length);
+    final safeStart = start <= end ? start : end;
+    final safeEnd = start <= end ? end : start;
+    final newText = current.substring(0, safeStart) + text + current.substring(safeEnd);
     widget.controller.text = newText;
-    widget.controller.selection = TextSelection.collapsed(offset: selection.start + text.length);
+    widget.controller.selection = TextSelection.collapsed(offset: safeStart + text.length);
+    widget.onSave?.call();
     widget.onClose();
   }
 
