@@ -40,9 +40,9 @@ class ChatHistoryRepository {
       final sessionList = AiChatSessionList.fromJsonString(jsonString);
 
       // 按更新时间排序（最新的在前）
-      sessionList.sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final sorted = List.of(sessionList.sessions)..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-      return sessionList.sessions;
+      return sorted;
     } catch (e) {
       print('ChatHistoryRepository load error: $e');
       return [];

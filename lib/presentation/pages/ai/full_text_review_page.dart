@@ -41,9 +41,9 @@ class _FullTextReviewPageState extends ConsumerState<FullTextReviewPage> {
     });
 
     try {
-      // Load all chapters
+      // Load all chapters (await if not yet loaded)
       final chaptersAsync = ref.read(chaptersProvider(widget.novelId));
-      final chapters = chaptersAsync.valueOrNull ?? [];
+      final chapters = chaptersAsync.valueOrNull ?? await ref.read(chaptersProvider(widget.novelId).future) ?? [];
       if (chapters.isEmpty) {
         setState(() {
           _isLoading = false;
@@ -57,7 +57,10 @@ class _FullTextReviewPageState extends ConsumerState<FullTextReviewPage> {
         '【${c.title}】\n${c.content.length > 2000 ? c.content.substring(0, 2000) + '...' : c.content}'
       ).join('\n\n');
 
-      // Load materials for context
+      // Load materials for context (ensure loaded)
+      if (ref.read(charactersProvider(widget.novelId)).isEmpty) {
+        await loadNovelMaterials(ref, widget.novelId);
+      }
       final characters = ref.read(charactersProvider(widget.novelId));
       final settings = ref.read(settingCardsProvider(widget.novelId));
       final hooks = ref.read(plotHooksProvider(widget.novelId));

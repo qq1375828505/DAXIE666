@@ -315,6 +315,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                     builder: (_) => PolishEnginePage(
                       chapterContent: _controller.text,
                       novelTitle: ref.read(selectedNovelProvider)?.title ?? '',
+                      onApply: (modifiedContent) {
+                        _controller.text = modifiedContent;
+                        _onTextChanged(modifiedContent);
+                      },
                     ),
                   ),
                 );
@@ -429,6 +433,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 newChapter.copyWith(content: secondPart, wordCount: secondPart.length, updatedAt: DateTime.now()),
                 novel.title,
               );
+              _lastSavedWordCount = firstPart.length;
               ref.invalidate(chaptersProvider(widget.novelId));
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

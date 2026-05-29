@@ -7,8 +7,10 @@ import 'package:novel_ide/data/services/ai_service.dart';
 class PolishEnginePage extends ConsumerStatefulWidget {
   final String chapterContent;
   final String novelTitle;
+  /// 精修完成后回传修改结果到编辑器
+  final void Function(String modifiedContent)? onApply;
 
-  const PolishEnginePage({super.key, required this.chapterContent, required this.novelTitle});
+  const PolishEnginePage({super.key, required this.chapterContent, required this.novelTitle, this.onApply});
 
   @override
   ConsumerState<PolishEnginePage> createState() => _PolishEnginePageState();
@@ -17,6 +19,31 @@ class PolishEnginePage extends ConsumerStatefulWidget {
 class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
   final List<PolishItem> _items = [];
   bool _isLoading = false;
+  late String _content;
+
+  @override
+  void initState() {
+    super.initState();
+    _content = widget.chapterContent;
+  }
+
+  void _applyAllAccepted() {
+    var result = widget.chapterContent;
+    for (final item in _items) {
+      if (item.isAccepted && item.suggestion.isNotEmpty && result.contains(item.original)) {
+        result = result.replaceFirst(item.original, item.suggestion);
+      }
+    }
+    _content = result;
+    widget.onApply?.call(_content);
+    if (mounted) {
+      final count = _items.where((i) => i.isAccepted).length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("已应用 $count 条建议")),
+      );
+    }
+    Navigator.pop(context);
+  }
 
   static const _dimensions = [
     '语病', '节奏', '文风', '冗余',
@@ -266,7 +293,7 @@ class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
                                       icon: Icon(item.isAccepted ? Icons.check_circle : Icons.check_circle_outline, size: 18),
                                       label: Text(item.isAccepted ? '已采用' : '采用'),
                                       onPressed: () {
-                                        setState(() => item.isAccepted = !item.isAccepted);
+                                        setState(() { item.isAccepted = !item.isAccepted; if (item.isAccepted && item.suggestion.isNotEmpty && _content.contains(item.original)) { _content = _content.replaceFirst(item.original, item.suggestion); widget.onApply?.call(_content); } });
                                       },
                                     ),
                                     const SizedBox(width: 4),
@@ -274,10 +301,13 @@ class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
                                       icon: const Icon(Icons.add_circle_outline, size: 18),
                                       label: const Text('插入下方'),
                                       onPressed: () {
-                                        // Insert suggestion below original in editor
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('建议已插入'), duration: Duration(seconds: 1)),
-                                        );
+                                        if (item.suggestion.isNotEmpty && _content.contains(item.original)) {
+                                          _content = _content.replaceFirst(item.original, item.original + item.suggestion);
+                                          widget.onApply?.call(_content);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('建议已插入'), duration: Duration(seconds: 1)),
+                                          );
+                                        }
                                       },
                                     ),
                                     const SizedBox(width: 4),
@@ -324,6 +354,13 @@ class _PolishEnginePageState extends ConsumerState<PolishEnginePage> {
                   ),
               ],
             ),
+      floatingActionButton: _items.isNotEmpty && _items.any((i) => i.isAccepted)
+          ? FloatingActionButton.extended(
+              onPressed: _applyAllAccepted,
+              icon: const Icon(Icons.done_all),
+              label: Text('应用全部已采纳 (${_items.where((i) => i.isAccepted).length})'),
+            )
+          : null,
     );
   }
 }
