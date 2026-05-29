@@ -37,7 +37,7 @@ class AiService {
   /// 智能补全 API 地址
   /// 根据协议类型自动补全为完整路径
   String _normalizeApiUrl(String url, ApiProtocol protocol) {
-    url = url.trim();
+    url = url.trim().replaceAll(RegExp(r'/+$'), ''); // 去除末尾斜杠
     if (url.isEmpty) return url;
 
     // 已经是完整路径，直接返回
@@ -67,6 +67,7 @@ class AiService {
         normalizedUrl,
         options: Options(
           headers: _buildHeaders(config),
+          connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 120),
         ),
         data: _buildPayload(config, messages),

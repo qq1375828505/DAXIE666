@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/material_models.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
+import 'package:novel_ide/data/repositories/material_repository.dart';
 import 'package:uuid/uuid.dart';
 
 class SettingReminderPage extends ConsumerStatefulWidget {
@@ -78,6 +79,7 @@ class _SettingReminderPageState extends ConsumerState<SettingReminderPage> {
                                     .where((r) => r.id != reminder.id)
                                     .toList();
                                 ref.read(settingRemindersProvider(widget.novelId).notifier).state = list;
+                                MaterialRepository().saveSettingReminders(widget.novelId, list);
                               },
                             ),
                           ],
@@ -189,6 +191,7 @@ class _SettingReminderPageState extends ConsumerState<SettingReminderPage> {
     }
 
     ref.read(settingRemindersProvider(widget.novelId).notifier).state = existingReminders;
+    MaterialRepository().saveSettingReminders(widget.novelId, existingReminders);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -231,7 +234,9 @@ class _SettingReminderPageState extends ConsumerState<SettingReminderPage> {
                 note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
               );
               final list = ref.read(settingRemindersProvider(widget.novelId));
-              ref.read(settingRemindersProvider(widget.novelId).notifier).state = [...list, reminder];
+              final newList = [...list, reminder];
+              ref.read(settingRemindersProvider(widget.novelId).notifier).state = newList;
+              MaterialRepository().saveSettingReminders(widget.novelId, newList);
               Navigator.pop(ctx);
             },
             child: const Text('添加'),

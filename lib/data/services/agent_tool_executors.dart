@@ -303,7 +303,15 @@ void registerAllToolExecutors({
     final characters = await materialRepo.getCharacters(novelId);
     final idx = characters.indexWhere((c) => c.name == name);
     if (idx < 0) return ToolResult(toolName: 'update_character', success: false, message: '未找到角色：$name');
-    if (args['role'] != null) characters[idx] = Character(id: characters[idx].id, novelId: novelId, name: name, role: args['role'] as String?, description: args['description'] as String? ?? characters[idx].description);
+    if (args['role'] != null || args['description'] != null) {
+      characters[idx] = Character(
+        id: characters[idx].id,
+        novelId: novelId,
+        name: name,
+        role: args['role'] as String? ?? characters[idx].role,
+        description: args['description'] as String? ?? characters[idx].description,
+      );
+    }
     await materialRepo.saveCharacters(novelId, characters);
     return ToolResult(toolName: 'update_character', success: true, message: '已更新角色：$name');
   });

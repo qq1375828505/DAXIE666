@@ -43,6 +43,13 @@ class _ProactiveQuestionDialogState extends State<ProactiveQuestionDialog> {
   bool _showCustomInput = false;
 
   @override
+  void initState() {
+    super.initState();
+    // 输入自定义内容时实时更新按钮状态
+    _customInputController.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     _customInputController.dispose();
     super.dispose();

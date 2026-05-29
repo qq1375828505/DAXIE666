@@ -229,6 +229,13 @@ class WorkspaceAgent {
                 'content': '执行失败: $e',
               });
             }
+          } else {
+            // 关键修复：工具不存在时也必须返回tool消息，否则API 400崩溃
+            apiMessages.add({
+              'role': 'tool',
+              'tool_call_id': tc.id,
+              'content': '工具 ${tc.functionName} 不存在，请不要调用此工具。',
+            });
           }
         }
       } else {

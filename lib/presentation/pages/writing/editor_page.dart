@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
@@ -41,8 +44,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   final TextEditingController _findCtrl = TextEditingController();
   int _findIndex = 0;
   Chapter? _currentChapter;
-  /// dispose 安全：缓存 novel title，避免 dispose 后 ref 失效
+  /// dispose 安全：缓存 novel title 和 projectPath，避免 dispose 后 ref 失效
   String _novelTitle = '';
+  String _projectPath = '';
 
   @override
   void initState() {
@@ -126,9 +130,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   Future<void> _loadChapter() async {
-    // 缓存 novel title 供 dispose 保存使用
+    // 缓存 novel title 和 projectPath 供 dispose 保存使用
     final novel = ref.read(selectedNovelProvider);
-    if (novel != null) _novelTitle = novel.title;
+    if (novel != null) {
+      _novelTitle = novel.title;
+      final fs = LocalFileDataSource();
+      _projectPath = await fs.getProjectDir(widget.novelId, _novelTitle);
+    }
     final chapter = await ref.read(chapterRepoProvider).getChapter(widget.chapterId);
     if (chapter != null) {
       _currentChapter = chapter;
@@ -436,11 +444,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   @override
   void dispose() {
-    // 先取消定时器，再强制同步保存
     _autoSaveTimer?.cancel();
     _snapshotTimer?.cancel();
-    // 强制保存：直接写文件，不依赖 ref（dispose 后 ref 可能失效）
-    _forceSaveOnDispose();
+    // 同步保存：用缓存的路径直接写文件，不依赖任何异步操作
+    _forceSaveSync();
     _controller.dispose();
     _scrollController.dispose();
     _findCtrl.dispose();
@@ -448,28 +455,23 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     super.dispose();
   }
 
-  /// dispose 时强制保存（同时更新文件和数据库word_count）
-  /// 直接使用DatabaseHelper，不依赖Riverpod（dispose后ref可能失效）
-  Future<void> _forceSaveOnDispose() async {
+
+  /// dispose 时同步保存文件+更新数据库
+  void _forceSaveSync() {
     try {
       final content = _controller.text;
-      if (content.isEmpty || _novelTitle.isEmpty) return;
-      // 1. 保存文件（使用缓存的 novelTitle，不依赖 ref）
-      final fs = LocalFileDataSource();
-      final projectPath = await fs.getProjectDir(widget.novelId, _novelTitle);
-      await fs.saveChapterContent(projectPath, widget.chapterId, content);
-      // 2. 更新数据库word_count（不依赖ref）
+      if (content.isEmpty || _projectPath.isEmpty) return;
+      // 1. 同步写文件
+      final filePath = p.join(_projectPath, 'chapters', '${widget.chapterId}.md');
+      File(filePath).writeAsStringSync(content, encoding: utf8);
+      // 2. 异步更新数据库（文件优先，数据库后台补）
       final db = DatabaseHelper();
-      final database = await db.database;
-      await database.update(
+      db.database.then((database) => database.update(
         'chapters',
-        {
-          'word_count': content.length,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-        },
+        {'word_count': content.length, 'updated_at': DateTime.now().millisecondsSinceEpoch},
         where: 'id = ?',
         whereArgs: [widget.chapterId],
-      );
+      ));
     } catch (e) {
       debugPrint('dispose 强制保存失败: $e');
     }

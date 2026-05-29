@@ -87,7 +87,11 @@ class VoiceService {
 
   /// 停止语音识别
   Future<void> stopListening() async {
-    await _speech.stop();
+    try {
+      await _speech.stop();
+    } catch (e) {
+      debugPrint('语音识别停止异常: $e');
+    }
     _isListening = false;
     onListeningEnd?.call();
   }

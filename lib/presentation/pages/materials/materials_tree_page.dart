@@ -76,6 +76,13 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
   void initState() {
     super.initState();
     _loadMemory();
+    // 关键修复：切到资料Tab时加载材料数据，否则页面为空
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final novel = ref.read(selectedNovelProvider);
+      if (novel != null) {
+        loadNovelMaterials(ref, novel.id);
+      }
+    });
   }
 
   Future<void> _loadMemory() async {
