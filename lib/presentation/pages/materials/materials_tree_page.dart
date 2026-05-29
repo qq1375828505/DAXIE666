@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:novel_ide/core/constants.dart';
 import 'package:novel_ide/data/models/material_models.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
@@ -10,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:novel_ide/presentation/widgets/file_tree_view.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart' hide FileTreeNode;
 import 'package:novel_ide/presentation/pages/materials/material_editor_page.dart';
+import 'package:novel_ide/presentation/pages/materials/relationship_graph_page.dart';
 
 
 
@@ -515,6 +517,12 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
   void _handleNodeLongPress(FileTreeNode node, String novelId) {
     final type = node.parentType ?? 'reference';
 
+    // 角色文件夹的长按 - 显示关系图选项
+    if (node.id == 'folder_characters') {
+      _showCharactersFolderMenu(node, novelId);
+      return;
+    }
+
     // 自定义文件夹的长按
     if (node.id.startsWith('custom_folder_')) {
       final folderId = node.id.replaceFirst('custom_folder_', '');
@@ -530,6 +538,38 @@ class _MaterialsTreePageState extends ConsumerState<MaterialsTreePage> {
 
     // 预置类型的长按
     _showNodeOptions(node, novelId);
+  }
+
+  void _showCharactersFolderMenu(FileTreeNode node, String novelId) {
+    final selectedNovel = ref.read(selectedNovelProvider);
+    if (selectedNovel == null) return;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: const Icon(Icons.account_tree, color: AppColors.primary),
+          title: const Text('查看关系图'),
+          subtitle: const Text('可视化角色之间的关系'),
+          onTap: () {
+            Navigator.pop(ctx);
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => RelationshipGraphPage(
+                novelId: selectedNovel.id,
+                novelTitle: selectedNovel.title,
+              ),
+            ));
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.edit),
+          title: const Text('编辑文件夹'),
+          onTap: () {
+            Navigator.pop(ctx);
+            // 默认行为
+          },
+        ),
+      ])),
+    );
   }
 
   void _showCustomFolderMenu(FileTreeNode node, String folderId, String novelId) {

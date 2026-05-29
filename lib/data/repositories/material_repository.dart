@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:novel_ide/data/models/material_models.dart';
+import 'package:novel_ide/data/models/character_relationship.dart';
 
 class MaterialRepository {
   Future<Directory> _getMaterialsDir(String novelId) async {
@@ -155,6 +156,28 @@ class MaterialRepository {
     final file = File(p.join(dir.path, '${novelId}_custom_folders.json'));
     final json = folders.map((f) => f.toJson()).toList();
     await file.writeAsString(jsonEncode(json), encoding: utf8);
+  }
+
+
+  // --- V4: Character Relationships ---
+  Future<RelationshipGraphData> getRelationshipGraphData(String novelId) async {
+    final dir = await _getMaterialsDir(novelId);
+    final file = File(p.join(dir.path, '${novelId}_relationships.json'));
+    if (!await file.exists()) {
+      return const RelationshipGraphData(relationships: [], positions: []);
+    }
+    final contentStr = await file.readAsString(encoding: utf8);
+    final json = jsonDecode(contentStr) as Map<String, dynamic>;
+    return RelationshipGraphData.fromJson(json);
+  }
+
+  Future<void> saveRelationshipGraphData(
+    String novelId,
+    RelationshipGraphData data,
+  ) async {
+    final dir = await _getMaterialsDir(novelId);
+    final file = File(p.join(dir.path, '${novelId}_relationships.json'));
+    await file.writeAsString(jsonEncode(data.toJson()), encoding: utf8);
   }
 
 }

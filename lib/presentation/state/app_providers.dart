@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
@@ -6,6 +7,7 @@ import 'package:novel_ide/data/models/tomato_preset_model.dart';
 import 'package:novel_ide/data/models/tomato_agent_model.dart';
 import 'package:novel_ide/data/models/ai_config_model.dart';
 import 'package:novel_ide/data/models/material_models.dart';
+import 'package:novel_ide/data/models/character_relationship.dart';
 import 'package:novel_ide/data/presets/tomato_presets_data.dart';
 import 'package:novel_ide/data/repositories/novel_repository.dart';
 import 'package:novel_ide/data/repositories/chapter_repository.dart';
@@ -120,6 +122,9 @@ final settingRemindersProvider = StateProvider.family<List<SettingReminder>, Str
 final locationsProvider = StateProvider.family<List<Location>, String>((ref, novelId) => []);
 final factionsProvider = StateProvider.family<List<Faction>, String>((ref, novelId) => []);
 final itemsProvider = StateProvider.family<List<Item>, String>((ref, novelId) => []);
+final relationshipsProvider = StateProvider.family<List<CharacterRelationship>, String>((ref, novelId) => []);
+final relationshipPositionsProvider = StateProvider.family<Map<String, Offset>, String>((ref, novelId) => {});
+
 final customFoldersProvider = StateProvider<List<CustomMaterialFolder>>((ref) => []);
 
 // AI Config
@@ -196,6 +201,14 @@ Future<void> loadNovelMaterials(WidgetRef ref, String novelId) async {
   ref.read(locationsProvider(novelId).notifier).state = await repo.getLocations(novelId);
   ref.read(factionsProvider(novelId).notifier).state = await repo.getFactions(novelId);
   ref.read(itemsProvider(novelId).notifier).state = await repo.getItems(novelId);
+  // V4: Relationships
+  final graphData = await repo.getRelationshipGraphData(novelId);
+  ref.read(relationshipsProvider(novelId).notifier).state = graphData.relationships;
+  final posMap = <String, Offset>{};
+  for (final p in graphData.positions) {
+    posMap[p.characterId] = Offset(p.x, p.y);
+  }
+  ref.read(relationshipPositionsProvider(novelId).notifier).state = posMap;
 }
 
 /// Load all data on app startup
