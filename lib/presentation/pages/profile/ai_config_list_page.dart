@@ -30,30 +30,11 @@ class AiConfigListPage extends ConsumerWidget {
       body: configs.isEmpty
           ? const Center(child: Text('未配置AI模型', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
-              itemCount: configs.length + (configs.any((c) => c.name.contains('智谱AI')) ? 0 : 1),
+              itemCount: configs.length,
               itemBuilder: (context, index) {
-                // 底部快捷入口
-                if (index == configs.length) {
-                  return ListTile(
-                    leading: const Icon(Icons.add_circle, color: Colors.green),
-                    title: const Text('添加智谱AI所有免费模型'),
-                    subtitle: const Text('GLM-4.7-Flash、多模态、视觉等5个模型'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () async {
-                      await DefaultConfigService.addAllFreeModels();
-                      await loadAiConfigs(ref);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('已添加所有智谱AI免费模型'), backgroundColor: Colors.green),
-                        );
-                      }
-                    },
-                  );
-                }
-
                 final config = configs[index];
                 final isSelected = config.id == selectedId;
-                final isBuiltin = DefaultConfigService.isBuiltinConfig(config.id);
+                final isBuiltin = DefaultConfigService.isBuiltinModel(config.id);
 
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

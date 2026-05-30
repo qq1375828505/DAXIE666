@@ -135,11 +135,11 @@ class AiService {
   /// - x-api-key: xxx           → Anthropic Claude
   /// 服务端只会识别自己需要的头，其他头会被忽略
   Map<String, String> _buildHeaders(AiConfig config) {
-    // 获取API Key：优先使用配置的，否则使用内置免费Key（游客模式）
+    // 获取API Key
     String apiKey = config.apiKey ?? '';
     if (apiKey.isEmpty && config.id.startsWith('guest_')) {
-      // 游客模式：使用内置免费API Key
-      apiKey = DefaultConfigService.getModelKey('glm-4.7-flash') ?? '';
+      // 游客模式：无内置Key，提示用户配置
+      apiKey = '';
     }
     
     final headers = <String, String>{
