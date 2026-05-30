@@ -6,6 +6,7 @@ import 'package:novel_ide/presentation/pages/ai/ai_chat_page.dart';
 import 'package:novel_ide/presentation/pages/profile/profile_page.dart';
 import 'package:novel_ide/presentation/pages/works/export_page.dart';
 import 'package:novel_ide/presentation/pages/materials/materials_tree_page.dart';
+import 'package:novel_ide/presentation/pages/materials/relationship_graph_page.dart';
 import 'package:novel_ide/presentation/pages/stats/stats_page.dart';
 import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
@@ -431,14 +432,14 @@ class _MainShellState extends ConsumerState<MainShell> {
                   const SizedBox(height: 8),
                   _buildSectionLabel('资料库', textSecondary),
                   
-                  // 资料库分类
-                  _buildMaterialNode('角色', 3, Icons.person, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('设定', 2, Icons.settings, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('伏笔', 1, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2),
-                  _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+                  // 资料库分类 - 读取真实数量
+                  ..._buildMaterialNodesWithCounts(
+                    selectedNovel,
+                    textPrimary,
+                    textTertiary,
+                    cardBg2,
+                    primaryColor,
+                  ),
                 ],
               ),
             ),
@@ -980,14 +981,25 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  Widget _buildMaterialNode(String label, int count, IconData icon, Color textPrimary, Color textTertiary, Color cardBg2) {
+  Widget _buildMaterialNode(
+    String label,
+    int count,
+    IconData icon,
+    Color textPrimary,
+    Color textTertiary,
+    Color cardBg2, {
+    String? materialType,
+  }) {
     return GestureDetector(
       onTap: () {
         setState(() => _sidebarOpen = false);
         // 跳转到资料库页面
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const MaterialsTreePage()),
+          MaterialPageRoute(
+            builder: (_) => const MaterialsTreePage(),
+            // TODO: 传递 materialType 参数，待 MaterialsTreePage 支持
+          ),
         );
       },
       child: Container(
@@ -1008,6 +1020,135 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建资料库节点列表，包含真实数量和关系图按钮
+  List<Widget> _buildMaterialNodesWithCounts(
+    Novel? selectedNovel,
+    Color textPrimary,
+    Color textTertiary,
+    Color cardBg2,
+    Color primaryColor,
+  ) {
+    // 如果没有选中作品，显示默认数量为0
+    if (selectedNovel == null) {
+      return [
+        _buildMaterialNode('角色', 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
+        _buildMaterialNode('设定', 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
+        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+        _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
+        _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+        _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
+        _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+      ];
+    }
+
+    // 读取真实数量
+    final novelId = selectedNovel.id;
+    final characters = ref.watch(charactersProvider(novelId));
+    final settings = ref.watch(settingCardsProvider(novelId));
+    final hooks = ref.watch(plotHooksProvider(novelId));
+    final factions = ref.watch(factionsProvider(novelId));
+    final items = ref.watch(itemsProvider(novelId));
+    final references = ref.watch(referencesProvider(novelId));
+
+    return [
+      // 角色节点 + 关系图按钮
+      _buildCharacterNodeWithGraphButton(
+        characters.length,
+        textPrimary,
+        textTertiary,
+        cardBg2,
+        primaryColor,
+        selectedNovel,
+      ),
+      _buildMaterialNode('设定', settings.length, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
+      _buildMaterialNode('伏笔', hooks.length, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+      _buildMaterialNode('势力', factions.length, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
+      _buildMaterialNode('道具', items.length, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+      _buildMaterialNode('参考', references.length, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
+      _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+    ];
+  }
+
+  /// 构建角色节点，包含关系图按钮
+  Widget _buildCharacterNodeWithGraphButton(
+    int count,
+    Color textPrimary,
+    Color textTertiary,
+    Color cardBg2,
+    Color primaryColor,
+    Novel selectedNovel,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      margin: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          // 角色节点
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MaterialsTreePage(),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.keyboard_arrow_right, color: textTertiary, size: 16),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.person, color: Color(0xFFFFFFFF), size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '角色 ($count)',
+                    style: TextStyle(color: textPrimary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 关系图按钮
+          GestureDetector(
+            onTap: () {
+              setState(() => _sidebarOpen = false);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RelationshipGraphPage(
+                    novelId: selectedNovel.id,
+                    novelTitle: selectedNovel.title,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: primaryColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people_outline, color: primaryColor, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    '关系图',
+                    style: TextStyle(color: primaryColor, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
