@@ -122,6 +122,22 @@ class WorkspaceAgent {
     AgentTool(name: 'get_skills', description: '获取所有已启用的Skill', category: ToolCategories.skill),
     AgentTool(name: 'add_skill', description: '添加自定义Skill', parameters: {'name': '名称', 'category': '分类', 'description': '描述', 'content': '内容'}, category: ToolCategories.skill),
 
+    // ====== 文本处理工具 ======
+    AgentTool(
+      name: 'humanize_text',
+      description: '''去AI味：将AI生成的文本改写为自然人类风格。核心规则：
+1. 删除过度强调词：stands as, is a testament, crucial/pivotal/key role, underscores, highlights its significance, reflects broader, symbolizing, contributing to, setting the stage for, marking a shift, focal point, indelible mark, deeply rooted
+2. 删除空洞评价：This is important, It is worth noting, It goes without saying, In today's world, At the end of the day
+3. 删除AI典型三项排比：把"A, B, and C"结构改为更自然的表达
+4. 减少破折号滥用：用逗号或句号替代不必要的em-dash
+5. 删除虚假归因：研究表明/专家认为/有人说是（无具体来源时删除）
+6. 打破句子同质化：混合长短句，加入个人视角和口语化表达
+7. 注入个性和情感：加入主观评价、幽默、不确定感，而非中性报道
+8. 保留核心含义，保持原文语气风格''',
+      parameters: {'text': '需要去AI味的文本内容'},
+      category: ToolCategories.analyze,
+    ),
+
     // ====== 系统配置工具 ======
     AgentTool(name: 'get_ai_configs', description: '获取所有AI模型配置', category: ToolCategories.config),
     AgentTool(name: 'add_ai_config', description: '添加AI模型配置', parameters: {'name': '名称', 'api_url': 'API地址', 'model_name': '模型ID', 'model_type': 'text/tts/stt', 'api_key': 'API Key'}, category: ToolCategories.config),

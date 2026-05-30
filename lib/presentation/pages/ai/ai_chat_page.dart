@@ -773,6 +773,24 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
                   _showAgentSelector();
                 },
               ),
+              // 去AI味选项
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.psychology_outlined, color: Colors.orange),
+                ),
+                title: const Text('去AI味', style: TextStyle(fontSize: 16)),
+                subtitle: const Text('消除AI写作痕迹，让文本更自然', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _humanizeText();
+                },
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -1024,6 +1042,31 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
     );
 
     _scrollToBottom();
+  }
+
+  /// 去AI味：将AI生成的文本改写为自然人类风格
+  void _humanizeText() {
+    final inputText = _inputCtrl.text.trim();
+    if (inputText.isEmpty) {
+      TopNotification.success(context, '请先在输入框中粘贴需要去AI味的文本');
+      return;
+    }
+    // 构造去AI味的请求，直接发给AI
+    final humanizePrompt = '''请对以下文本进行去AI味改写，遵循这些规则：
+1. 删除过度强调词（crucial/pivotal/stands as/is a testament/reflects broader）
+2. 删除空洞评价（This is important/It is worth noting/In today's world）
+3. 删除AI典型三项排比，改为更自然的表达
+4. 减少破折号滥用，用逗号或句号替代
+5. 删除虚假归因（研究表明/专家认为 无具体来源时）
+6. 打破句子同质化，混合长短句，加入个人视角
+7. 注入个性和情感，而非中性报道
+8. 保留核心含义，保持原文语气风格
+
+原文本：
+$inputText''';
+
+    _inputCtrl.text = humanizePrompt;
+    _sendMessage();
   }
 
   /// 选择资料作为AI上下文

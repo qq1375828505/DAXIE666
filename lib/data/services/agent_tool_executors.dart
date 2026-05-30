@@ -124,6 +124,20 @@ void registerGeneralToolExecutors({required WorkspaceAgent agent, Function(Strin
       return ToolResult(toolName: 'switch_novel', success: false, message: '切换失败: $e');
     }
   });
+
+  // ====== 文本处理工具 ======
+
+  agent.registerExecutor('humanize_text', (args) async {
+    final text = args['text'] as String? ?? '';
+    if (text.isEmpty) return ToolResult(toolName: 'humanize_text', success: false, message: '请提供需要去AI味的文本');
+    // 此工具由AI直接处理：AI读取工具描述中的Humanizer规则，对文本进行改写
+    // 执行器仅做输入校验，实际改写由AI对话层完成
+    return ToolResult(
+      toolName: 'humanize_text',
+      success: true,
+      message: '请根据工具描述中的Humanizer规则，对以下文本进行去AI味改写：\n\n$text',
+    );
+  });
 }
 
 /// 注册所有Agent工具执行器
