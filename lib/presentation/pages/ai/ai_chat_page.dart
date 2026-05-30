@@ -991,9 +991,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
                         ? _openVoiceCall
                         : () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('语音通话需要配置语音模型，请前往 我的 → 语音配置'),
-                                duration: Duration(seconds: 3),
+                              SnackBar(
+                                content: const Text('语音通话需要配置语音模型，请前往 我的 → 语音配置'),
+                                duration: const Duration(seconds: 3),
                                 action: SnackBarAction(
                                   label: '去配置',
                                   onPressed: () {
