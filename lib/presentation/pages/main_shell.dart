@@ -352,11 +352,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                 }
               },
             ),
-            // AI工具按钮 - 点击跳转到AI聊天页面
+            // AI工具按钮 - 跳转到AI聊天页面
             IconButton(
               icon: Icon(Icons.psychology, color: primaryColor, size: 22),
               onPressed: () {
-                // 跳转到AI聊天页面，用户可以在这里访问所有AI工具
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AiChatPage()),
@@ -473,18 +472,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                     cardBg2,
                     primaryColor,
                   ),
-                  
-                  const SizedBox(height: 8),
-                  _buildSectionLabel('AI工具', textSecondary),
-                  
-                  // AI工具分类 - 直接跳转到AI聊天页面的工具菜单
-                  _buildAiToolItem('写作统计', Icons.bar_chart, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('爽点报告', Icons.analytics, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('水文检测', Icons.water_drop, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('标题生成', Icons.title, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('全文审查', Icons.fact_check, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('润色引擎', Icons.auto_fix_high, textPrimary, textTertiary, cardBg2),
-                  _buildAiToolItem('Agent市场', Icons.store, textPrimary, textTertiary, cardBg2),
                 ],
               ),
             ),
@@ -899,34 +886,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  /// 展开/折叠作品节点
-  void _toggleNovelExpand(String novelId) {
-    setState(() {
-      if (_expandedNovels.contains(novelId)) {
-        _expandedNovels.remove(novelId);
-      } else {
-        _expandedNovels.add(novelId);
-        // 加载卷数据
-        _loadVolumesForNovel(novelId);
-      }
-    });
-  }
-
-  /// 加载作品的卷数据
-  Future<void> _loadVolumesForNovel(String novelId) async {
-    if (_loadedVolumes[novelId] != null) return;
-    
-    try {
-      final volumeRepo = ref.read(volumeRepoProvider);
-      final volumes = await volumeRepo.getVolumesByNovel(novelId);
-      setState(() {
-        _loadedVolumes[novelId] = volumes;
-      });
-    } catch (e) {
-      debugPrint('Load volumes error: $e');
-    }
-  }
-
   Widget _buildVolumeNode({
     required Volume volume,
     required Novel novel,
@@ -942,11 +901,10 @@ class _MainShellState extends ConsumerState<MainShell> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: () => _toggleVolumeExpand(volume.id, novel.id),
+          onTap: () => _toggleVolumeExpand(volume.id),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            margin: const EdgeInsets.only(bottom: 1),
             child: Row(
               children: [
                 Icon(
@@ -955,19 +913,15 @@ class _MainShellState extends ConsumerState<MainShell> {
                   size: 14,
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.folder, color: const Color(0xFF666666), size: 14),
+                const Icon(Icons.folder, color: Color(0xFFFFC107), size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     volume.title,
-                    style: TextStyle(color: textSecondary, fontSize: 12),
+                    style: TextStyle(color: textPrimary, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  '${volume.chapterCount}章',
-                  style: TextStyle(color: textTertiary, fontSize: 10),
                 ),
               ],
             ),
@@ -975,15 +929,15 @@ class _MainShellState extends ConsumerState<MainShell> {
         ),
         if (isExpanded && chapters != null)
           Padding(
-            padding: const EdgeInsets.only(left: 16),
+            padding: const EdgeInsets.only(left: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: chapters.map((chapter) => _buildChapterNode(
-                chapter: chapter,
+              children: chapters.map((ch) => _buildChapterLeaf(
+                chapter: ch,
                 novel: novel,
                 textPrimary: textPrimary,
-                textSecondary: textSecondary,
                 textTertiary: textTertiary,
+                cardBg2: cardBg2,
               )).toList(),
             ),
           ),
@@ -991,161 +945,85 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  /// 展开/折叠卷节点
-  void _toggleVolumeExpand(String volumeId, String novelId) {
-    setState(() {
-      if (_expandedVolumes.contains(volumeId)) {
-        _expandedVolumes.remove(volumeId);
-      } else {
-        _expandedVolumes.add(volumeId);
-        // 加载章节数据
-        _loadChaptersForVolume(volumeId, novelId);
-      }
-    });
-  }
-
-  /// 加载卷的章节数据
-  Future<void> _loadChaptersForVolume(String volumeId, String novelId) async {
-    if (_loadedChapters[volumeId] != null) return;
-    
-    try {
-      final chapterRepo = ref.read(chapterRepoProvider);
-      final chapters = await chapterRepo.getChaptersByVolume(volumeId);
-      setState(() {
-        _loadedChapters[volumeId] = chapters;
-      });
-    } catch (e) {
-      debugPrint('Load chapters error: $e');
-    }
-  }
-
-  Widget _buildChapterNode({
+  Widget _buildChapterLeaf({
     required Chapter chapter,
     required Novel novel,
     required Color textPrimary,
-    required Color textSecondary,
     required Color textTertiary,
+    required Color cardBg2,
   }) {
+    final status = ChapterStatus.values.firstWhere(
+      (e) => e.name == chapter.status,
+      orElse: () => ChapterStatus.draft,
+    );
+    
+    Color badgeColor;
+    String badgeText;
+    switch (status) {
+      case ChapterStatus.unwritten:
+        badgeColor = const Color(0xFF6C757D);
+        badgeText = '未写';
+        break;
+      case ChapterStatus.draft:
+        badgeColor = const Color(0xFFFFC107);
+        badgeText = '草稿';
+        break;
+      case ChapterStatus.polishing:
+        badgeColor = const Color(0xFF17A2B8);
+        badgeText = '润色中';
+        break;
+      case ChapterStatus.completed:
+        badgeColor = const Color(0xFF28A745);
+        badgeText = '已完成';
+        break;
+      case ChapterStatus.exported:
+        badgeColor = const Color(0xFF007BFF);
+        badgeText = '已导出';
+        break;
+    }
+    
     return GestureDetector(
       onTap: () {
         ref.read(selectedNovelProvider.notifier).state = novel;
         ref.read(selectedChapterProvider.notifier).state = chapter;
-        setState(() => _sidebarOpen = false);
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const EditorPage()),
+          MaterialPageRoute(
+            builder: (_) => EditorPage(novelId: novel.id, chapterId: chapter.id),
+          ),
         );
+        setState(() => _sidebarOpen = false);
       },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        margin: const EdgeInsets.only(bottom: 1),
         child: Row(
           children: [
-            const SizedBox(width: 18),
-            Icon(Icons.description, color: const Color(0xFF666666), size: 14),
+            const Icon(Icons.description, color: Color(0xFF999999), size: 14),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 chapter.title,
-                style: TextStyle(color: textSecondary, fontSize: 12),
+                style: TextStyle(color: textPrimary, fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              '${chapter.wordCount}字',
-              style: TextStyle(color: textTertiary, fontSize: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: badgeColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                badgeText,
+                style: TextStyle(color: badgeColor, fontSize: 10),
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  /// 构建资料库节点列表，包含真实数量和关系图按钮
-  List<Widget> _buildMaterialNodesWithCounts(
-    Novel? selectedNovel,
-    Color textPrimary,
-    Color textTertiary,
-    Color cardBg2,
-    Color primaryColor,
-  ) {
-    // 如果没有选中作品，显示默认数量为0
-    if (selectedNovel == null) {
-      return [
-        _buildMaterialNode('角色', 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
-        _buildMaterialNode('设定', 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-        _buildMaterialNode('地点', 0, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
-        _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
-        _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
-        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
-        _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
-        _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
-      ];
-    }
-
-    // 读取真实数量
-    return [
-      _buildMaterialNode('角色', selectedNovel.characterCount, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
-      _buildMaterialNode('设定', selectedNovel.settingCount, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-      _buildMaterialNode('地点', selectedNovel.locationCount, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
-      _buildMaterialNode('势力', selectedNovel.factionCount, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
-      _buildMaterialNode('道具', selectedNovel.itemCount, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
-      _buildMaterialNode('伏笔', selectedNovel.hookCount, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
-      _buildMaterialNode('参考', selectedNovel.referenceCount, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
-      _buildMaterialNode('记忆包', selectedNovel.memoryCount, Icons.psychology, textPrimary, textTertiary, cardBg2),
-      // 关系图按钮
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        margin: const EdgeInsets.only(bottom: 2),
-        child: Row(
-          children: [
-            const SizedBox(width: 20),
-            Expanded(
-              child: Text(
-                '关系图',
-                style: TextStyle(color: textPrimary, fontSize: 13),
-              ),
-            ),
-            // 关系图按钮
-            GestureDetector(
-              onTap: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RelationshipGraphPage(
-                      novelId: selectedNovel.id,
-                      novelTitle: selectedNovel.title,
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: primaryColor.withOpacity(0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.people_outline, color: primaryColor, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      '关系图',
-                      style: TextStyle(color: primaryColor, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ];
   }
 
   Widget _buildMaterialNode(
@@ -1196,41 +1074,132 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  /// 构建AI工具项 - 点击跳转到AI聊天页面
-  Widget _buildAiToolItem(
-    String label,
-    IconData icon,
+  /// 构建资料库节点列表，包含真实数量和关系图按钮
+  List<Widget> _buildMaterialNodesWithCounts(
+    Novel? selectedNovel,
     Color textPrimary,
     Color textTertiary,
     Color cardBg2,
+    Color primaryColor,
   ) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _sidebarOpen = false);
-        // 跳转到AI聊天页面，用户可以在这里访问所有AI工具
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AiChatPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        margin: const EdgeInsets.only(bottom: 2),
-        child: Row(
-          children: [
-            const SizedBox(width: 20),
-            Icon(icon, color: const Color(0xFF10A37F), size: 16),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(color: textPrimary, fontSize: 13),
+    // 如果没有选中作品，显示默认数量为0
+    if (selectedNovel == null) {
+      return [
+        _buildMaterialNode('角色', 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
+        _buildMaterialNode('设定', 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
+        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+        _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
+        _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+        _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
+        _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+      ];
+    }
+
+    // 读取真实数量
+    final novelId = selectedNovel.id;
+    final characters = ref.watch(charactersProvider(novelId));
+    final settings = ref.watch(settingCardsProvider(novelId));
+    final hooks = ref.watch(plotHooksProvider(novelId));
+    final factions = ref.watch(factionsProvider(novelId));
+    final items = ref.watch(itemsProvider(novelId));
+    final references = ref.watch(referencesProvider(novelId));
+
+    return [
+      // 角色节点 + 关系图按钮
+      _buildCharacterNodeWithGraphButton(
+        characters.length,
+        textPrimary,
+        textTertiary,
+        cardBg2,
+        primaryColor,
+        selectedNovel,
+      ),
+      _buildMaterialNode('设定', settings.length, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
+      _buildMaterialNode('伏笔', hooks.length, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+      _buildMaterialNode('势力', factions.length, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
+      _buildMaterialNode('道具', items.length, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+      _buildMaterialNode('参考', references.length, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
+      _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+    ];
+  }
+
+  /// 构建角色节点，包含关系图按钮
+  Widget _buildCharacterNodeWithGraphButton(
+    int count,
+    Color textPrimary,
+    Color textTertiary,
+    Color cardBg2,
+    Color primaryColor,
+    Novel selectedNovel,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      margin: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          // 角色节点
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _sidebarOpen = false);
+                ref.read(initialMaterialTabProvider.notifier).state = 'character';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MaterialsTreePage(),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.keyboard_arrow_right, color: textTertiary, size: 16),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.person, color: Color(0xFFFFFFFF), size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '角色 ($count)',
+                    style: TextStyle(color: textPrimary, fontSize: 13),
+                  ),
+                ],
               ),
             ),
-            Icon(Icons.chevron_right, color: textTertiary, size: 16),
-          ],
-        ),
+          ),
+          // 关系图按钮
+          GestureDetector(
+            onTap: () {
+              setState(() => _sidebarOpen = false);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RelationshipGraphPage(
+                    novelId: selectedNovel.id,
+                    novelTitle: selectedNovel.title,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: primaryColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people_outline, color: primaryColor, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    '关系图',
+                    style: TextStyle(color: primaryColor, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1246,71 +1215,151 @@ class _MainShellState extends ConsumerState<MainShell> {
     required Color dividerColor,
   }) {
     final aiConfigs = ref.watch(aiConfigsProvider);
-    final selectedAiConfig = ref.watch(selectedAiConfigProvider);
+    final selectedConfig = ref.watch(selectedAiConfigProvider);
+    final textConfigs = aiConfigs.where((c) => c.modelType == ModelType.text).toList();
+    
+    // 如果没有配置，显示提示
+    if (textConfigs.isEmpty) {
+      return Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: Border.all(color: const Color(0xFF333333)),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(color: Colors.black45, blurRadius: 32),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('暂无AI模型配置', style: TextStyle(color: textSecondary, fontSize: 14)),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                setState(() => _modelDropdownOpen = false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
+              },
+              child: const Text('去配置'),
+            ),
+          ],
+        ),
+      );
+    }
     
     return Container(
-      width: 300,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      width: 280,
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: dividerColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+        border: Border.all(color: const Color(0xFF333333)),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 32),
         ],
       ),
+      padding: const EdgeInsets.all(6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              '选择模型',
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+          ...textConfigs.map((config) => GestureDetector(
+            onTap: () {
+              // 更新选中的AI配置
+              ref.read(selectedAiConfigProvider.notifier).state = config;
+              setState(() {
+                _selectedModelDisplay = config.name;
+                _modelDropdownOpen = false;
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: selectedConfig?.id == config.id ? cardBg2 : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    config.name,
+                    style: TextStyle(color: textPrimary, fontSize: 14),
+                  ),
+                  if (config.modelName.contains('GLM') || config.modelName.contains('glm')) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A3A2A),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '内置',
+                        style: TextStyle(color: primaryColor, fontSize: 10),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (selectedConfig?.id == config.id)
+                    Icon(Icons.check, color: primaryColor, size: 18),
+                ],
               ),
             ),
-          ),
-          Divider(height: 1, color: dividerColor),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: aiConfigs.length,
-              itemBuilder: (context, index) {
-                final config = aiConfigs[index];
-                final isSelected = selectedAiConfig?.id == config.id;
-                
-                return ListTile(
-                  title: Text(
-                    config.name,
-                    style: TextStyle(
-                      color: isSelected ? primaryColor : textPrimary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  subtitle: Text(
-                    config.modelType == ModelType.text ? '文本模型' : '图像模型',
-                    style: TextStyle(color: textSecondary, fontSize: 12),
-                  ),
-                  trailing: isSelected
-                      ? Icon(Icons.check, color: primaryColor, size: 20)
-                      : null,
-                  onTap: () {
-                    ref.read(selectedAiConfigProvider.notifier).state = config;
-                    setState(() => _modelDropdownOpen = false);
-                  },
-                );
-              },
+          )),
+          Container(height: 1, color: dividerColor, margin: const EdgeInsets.symmetric(vertical: 4)),
+          GestureDetector(
+            onTap: () {
+              setState(() => _modelDropdownOpen = false);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Text(
+                '管理模型',
+                style: TextStyle(color: primaryColor, fontSize: 13),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _toggleNovelExpand(String novelId) async {
+    if (_expandedNovels.contains(novelId)) {
+      setState(() => _expandedNovels.remove(novelId));
+    } else {
+      setState(() => _expandedNovels.add(novelId));
+      if (!_loadedVolumes.containsKey(novelId)) {
+        final volumes = await ref.read(volumeRepoProvider).getVolumesByNovel(novelId);
+        if (mounted) {
+          setState(() {
+            _loadedVolumes[novelId] = volumes;
+          });
+        }
+      }
+    }
+  }
+
+  void _toggleVolumeExpand(String volumeId) async {
+    if (_expandedVolumes.contains(volumeId)) {
+      setState(() => _expandedVolumes.remove(volumeId));
+    } else {
+      setState(() => _expandedVolumes.add(volumeId));
+      if (!_loadedChapters.containsKey(volumeId)) {
+        final chapters = await ref.read(chapterRepoProvider).getChaptersByVolume(volumeId);
+        if (mounted) {
+          setState(() {
+            _loadedChapters[volumeId] = chapters;
+          });
+        }
+      }
+    }
   }
 }
