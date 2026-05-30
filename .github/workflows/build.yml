@@ -2,10 +2,10 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ master ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch: # 允许手动触发
+    branches: [ master ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -31,6 +31,18 @@ jobs:
     - name: Generate code (build_runner)
       run: flutter pub run build_runner build --delete-conflicting-outputs
 
+    # 解码签名文件
+    - name: Decode keystore
+      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release-key.jks
+
+    # 创建 key.properties 供 build.gradle 读取
+    - name: Create key.properties
+      run: |
+        echo "storeFile=release-key.jks" > android/app/key.properties
+        echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/app/key.properties
+        echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/app/key.properties
+        echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/app/key.properties
+
     - name: Build APK
       run: flutter build apk --release
 
@@ -43,9 +55,9 @@ jobs:
         name: release-apk
         path: novel-ide-android.apk
 
-    # 自动创建/更新 Release 并上传 APK（仅 main/master 分支 push，非 PR）
+    # 自动创建/更新 Release 并上传 APK（仅 master 分支 push，非 PR）
     - name: Auto Release
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "latest"
@@ -55,7 +67,6 @@ jobs:
 
           **安装说明**：支持 Android 6.0+，下载 APK 后直接安装即可。
         files: novel-ide-android.apk
-        # 强制覆盖已存在的文件
         fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
