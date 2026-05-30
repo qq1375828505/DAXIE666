@@ -1037,29 +1037,17 @@ class _MainShellState extends ConsumerState<MainShell> {
     Color cardBg2,
     Color primaryColor,
   ) {
-    if (selectedNovel == null) {
-      return [
-        _buildMaterialNode('角色', 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
-        _buildMaterialNode('设定', 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-        _buildMaterialNode('地点', 0, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
-        _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
-        _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
-        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
-        _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
-        _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
-      ];
-    }
-
-    return [
-      _buildMaterialNode('角色', selectedNovel.characterCount, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
-      _buildMaterialNode('设定', selectedNovel.settingCount, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-      _buildMaterialNode('地点', selectedNovel.locationCount, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
-      _buildMaterialNode('势力', selectedNovel.factionCount, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
-      _buildMaterialNode('道具', selectedNovel.itemCount, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
-      _buildMaterialNode('伏笔', selectedNovel.hookCount, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
-      _buildMaterialNode('参考', selectedNovel.referenceCount, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
-      _buildMaterialNode('记忆包', selectedNovel.memoryCount, Icons.psychology, textPrimary, textTertiary, cardBg2),
-      // 关系图按钮
+    // 关系图按钮 - 始终显示
+    final List<Widget> nodes = [
+      _buildMaterialNode('角色', selectedNovel?.characterCount ?? 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
+      _buildMaterialNode('设定', selectedNovel?.settingCount ?? 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
+      _buildMaterialNode('地点', selectedNovel?.locationCount ?? 0, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
+      _buildMaterialNode('势力', selectedNovel?.factionCount ?? 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
+      _buildMaterialNode('道具', selectedNovel?.itemCount ?? 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+      _buildMaterialNode('伏笔', selectedNovel?.hookCount ?? 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+      _buildMaterialNode('参考', selectedNovel?.referenceCount ?? 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
+      _buildMaterialNode('记忆包', selectedNovel?.memoryCount ?? 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
+      // 关系图按钮 - 始终显示
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         margin: const EdgeInsets.only(bottom: 2),
@@ -1068,12 +1056,12 @@ class _MainShellState extends ConsumerState<MainShell> {
             const SizedBox(width: 20),
             Expanded(
               child: Text(
-                '关系图',
+                '人物关系图',
                 style: TextStyle(color: textPrimary, fontSize: 13),
               ),
             ),
             GestureDetector(
-              onTap: () {
+              onTap: selectedNovel != null ? () {
                 setState(() => _sidebarOpen = false);
                 Navigator.push(
                   context,
@@ -1084,22 +1072,22 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                   ),
                 );
-              },
+              } : null,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.15),
+                  color: primaryColor.withOpacity(selectedNovel != null ? 0.15 : 0.05),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: primaryColor.withOpacity(0.3)),
+                  border: Border.all(color: primaryColor.withOpacity(selectedNovel != null ? 0.3 : 0.1)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.people_outline, color: primaryColor, size: 14),
+                    Icon(Icons.people_outline, color: primaryColor.withOpacity(selectedNovel != null ? 1.0 : 0.4), size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      '关系图',
-                      style: TextStyle(color: primaryColor, fontSize: 11),
+                      '查看',
+                      style: TextStyle(color: primaryColor.withOpacity(selectedNovel != null ? 1.0 : 0.4), fontSize: 11),
                     ),
                   ],
                 ),
@@ -1109,6 +1097,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         ),
       ),
     ];
+    return nodes;
   }
 
   Widget _buildMaterialNode(
