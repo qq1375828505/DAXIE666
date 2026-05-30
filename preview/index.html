@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>网文写作IDE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;justify-content:center;overflow:hidden}
+.phone{width:100%;max-width:480px;height:100%;display:flex;flex-direction:column;position:relative;background:#000}
+/* ====== TOP BAR ====== */
+.topbar{display:flex;align-items:center;padding:12px 16px;flex-shrink:0}
+.topbar .menu-btn,.topbar .new-btn{background:none;border:none;color:#fff;padding:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.topbar .title-area{flex:1;text-align:center}
+.topbar .title-area .app-name{font-size:16px;font-weight:600}
+.topbar .title-area .model-pill{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:8px;background:#2f2f2f;color:#aaa;font-size:11px}
+/* ====== CHAT AREA ====== */
+.chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px;padding-bottom:100px;scroll-behavior:smooth}
+.msg{display:flex;gap:12px;width:100%;animation:fadeUp .3s}
+.msg.user{flex-direction:row-reverse}
+.msg.user .bubble{background:#2f2f2f;padding:10px 16px;border-radius:20px;border-bottom-right-radius:6px;max-width:82%;font-size:15px;line-height:1.6}
+.msg.ai{flex-direction:row}
+.msg.ai .bubble{padding:4px 0;font-size:15px;line-height:1.6;flex:1}
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.avatar.ai-av{background:#fff}
+.avatar.ai-av svg{width:16px;height:16px;fill:#000}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;background:#10a37f;color:#fff;margin:4px 4px 4px 0}
+.save-hint{font-size:12px;color:#10a37f;display:block;margin-top:8px}
+.typing{display:flex;gap:4px;padding:8px 0}
+.typing span{width:6px;height:6px;background:#666;border-radius:50%;animation:dot .6s infinite alternate}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+/* ====== INPUT BAR ====== */
+.input-area{position:absolute;bottom:0;left:0;right:0;padding:10px 16px 20px;background:linear-gradient(180deg,transparent 0%,#000 20%)}
+.capsule{background:#2f2f2f;border-radius:24px;display:flex;align-items:flex-end;padding:6px 8px 6px 6px;gap:4px}
+.capsule .plus-btn{width:36px;height:36px;border-radius:50%;background:none;border:none;color:#aaa;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.capsule textarea{flex:1;background:transparent;border:none;color:#fff;font-size:16px;line-height:20px;max-height:120px;outline:none;resize:none;padding:8px 4px;font-family:inherit}
+.capsule textarea::placeholder{color:#888}
+.capsule .send-btn{width:32px;height:32px;border-radius:50%;background:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.capsule .send-btn:active{background:#ddd}
+.capsule .send-btn svg{width:18px;height:18px;fill:#000}
+/* ====== OVERLAY & PANELS ====== */
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.open{opacity:1;pointer-events:auto}
+.sidebar{position:absolute;top:0;left:-300px;width:280px;height:100%;background:#171717;z-index:31;transition:left .3s ease;display:flex;flex-direction:column;overflow:hidden}
+.sidebar.open{left:0}
+.sidebar .sb-header{padding:14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2a2a;flex-shrink:0}
+.sidebar .new-session-btn{flex:1;padding:10px;border-radius:10px;border:1px solid #333;background:none;color:#fff;font-size:14px;cursor:pointer;text-align:left}
+.sidebar .new-session-btn:active{background:#2a2a2a}
+.sb-section{padding:4px 10px}
+.sb-label{font-size:12px;font-weight:600;color:#888;padding:10px 4px 4px}
+.sb-item{padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#ddd;line-height:1.4}
+.sb-item:active{background:#2a2a2a}
+.sb-item .time{font-size:11px;color:#666;display:block;margin-top:2px}
+.tree-node{display:flex;align-items:center;gap:6px;padding:7px 10px;cursor:pointer;font-size:13px;border-radius:6px;color:#ddd}
+.tree-node:active{background:#2a2a2a}
+.tree-arrow{width:16px;text-align:center;font-size:10px;color:#666;transition:transform .2s;flex-shrink:0}
+.tree-arrow.open{transform:rotate(90deg)}
+.tree-children{padding-left:16px;display:none}
+.tree-children.open{display:block}
+.tree-leaf{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 26px;font-size:13px;cursor:pointer;border-radius:6px;color:#999}
+.tree-leaf:active{background:#2a2a2a}
+.badge{font-size:10px;padding:1px 6px;border-radius:4px;margin-left:auto}
+.badge.draft{background:rgba(255,193,7,.15);color:#ffc107}
+.badge.done{background:rgba(40,167,69,.15);color:#28a745}
+.badge.empty{background:rgba(108,117,125,.15);color:#6c757d}
+.badge.count{background:#2f2f2f;color:#aaa}
+.sb-footer{padding:12px 14px;border-top:1px solid #2a2a2a;display:flex;gap:10px;flex-shrink:0;margin-top:auto}
+.sb-footer button{flex:1;padding:10px;border-radius:10px;border:1px solid #333;background:none;color:#fff;font-size:13px;cursor:pointer}
+.sb-footer button:active{background:#2a2a2a}
+/* ====== MODEL DROPDOWN ====== */
+.model-dropdown{position:absolute;top:52px;left:50%;transform:translateX(-50%);width:280px;background:#1a1a1a;border:1px solid #333;border-radius:14px;z-index:20;padding:6px;display:none;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.model-dropdown.open{display:block;animation:fadeUp .2s}
+.model-item{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;color:#ddd}
+.model-item:active,.model-item.active{background:#2a2a2a}
+.model-item.active::after{content:"\2713";margin-left:auto;color:#10a37f;font-weight:bold}
+.model-item .free-tag{font-size:10px;background:#1a3a2a;padding:2px 8px;border-radius:4px;color:#10a37f}
+.model-divider{height:1px;background:#333;margin:4px 0}
+/* ====== BOTTOM SHEET ====== */
+.sheet-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s}
+.sheet-overlay.open{opacity:1;pointer-events:auto}
+.sheet{position:absolute;bottom:-600px;left:0;right:0;background:#1a1a1a;border-radius:16px 16px 0 0;z-index:31;transition:bottom .3s ease;padding:16px 16px 28px;max-height:85vh;overflow-y:auto}
+.sheet.open{bottom:0}
+.sheet-handle{width:36px;height:4px;background:#444;border-radius:2px;margin:0 auto 14px}
+.sheet-title{font-size:15px;font-weight:600;margin-bottom:14px;text-align:center}
+.sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet-item{padding:14px;border-radius:12px;background:#2a2a2a;cursor:pointer;text-align:center;font-size:13px;border:1px solid transparent;color:#ddd}
+.sheet-item:active{border-color:#10a37f;background:rgba(16,163,127,.1)}
+.sheet-item .si-icon{font-size:24px;display:block;margin-bottom:6px}
+.sheet-item .si-sub{font-size:10px;color:#888;display:block;margin-top:2px}
+.agent-grid{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.agent-grid::-webkit-scrollbar{display:none}
+.agent-card{flex-shrink:0;width:120px;padding:10px;border-radius:12px;background:#2a2a2a;border:1px solid #333;cursor:pointer}
+.agent-card:active,.agent-card.active{border-color:#10a37f;background:rgba(16,163,127,.08)}
+.agent-card .an{font-size:13px;font-weight:600;margin-bottom:4px}
+.agent-card .ad{font-size:11px;color:#888;line-height:1.3}
+/* ====== RIGHT PANEL (Chapter detail) ====== */
+.right-panel{position:absolute;top:0;right:-320px;width:300px;height:100%;background:#171717;z-index:31;transition:right .3s;overflow-y:auto;border-left:1px solid #2a2a2a;padding:16px}
+.right-panel.open{right:0}
+.rp-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.rp-header .close-btn{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:4px}
+.rp-header h3{font-size:15px;font-weight:600;flex:1}
+.rp-action{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid #2a2a2a;cursor:pointer;gap:12px;font-size:14px;color:#ddd}
+.rp-action:active{background:#2a2a2a;border-radius:8px}
+.rp-action.danger{color:#dc3545}
+/* ====== SLIDE PANELS ====== */
+.slide-panel{position:absolute;inset:0;background:#000;z-index:32;transform:translateX(100%);transition:transform .3s;overflow-y:auto}
+.slide-panel.open{transform:none}
+.slide-panel .sp-header{padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2a2a;position:sticky;top:0;background:#000;z-index:2}
+.slide-panel .sp-header .back-btn{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:4px}
+.slide-panel .sp-header h2{font-size:16px;font-weight:600}
+/* ====== EXPORT ====== */
+.export-card{margin:12px 16px;padding:16px;border-radius:12px;border:1px solid #333;cursor:pointer}
+.export-card:active{border-color:#10a37f;background:rgba(16,163,127,.05)}
+.export-card .ec-name{font-size:15px;font-weight:600;margin-bottom:4px}
+.export-card .ec-desc{font-size:12px;color:#888}
+.export-opt{margin:8px 16px;padding:10px 14px;background:#1a1a1a;border-radius:10px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#ddd}
+.export-opt label{display:flex;align-items:center;gap:8px;cursor:pointer}
+/* ====== SETTINGS ====== */
+.settings-section{padding:0 16px}
+.settings-section h3{font-size:12px;color:#888;padding:16px 0 6px;font-weight:600;text-transform:uppercase}
+.setting-item{display:flex;align-items:center;padding:14px 0;border-bottom:1px solid #2a2a2a;cursor:pointer;gap:12px}
+.setting-item .si-label{flex:1;font-size:14px;color:#ddd}
+.setting-item .si-sublabel{font-size:12px;color:#666}
+.setting-item .si-arrow{color:#666}
+.toggle{width:44px;height:26px;border-radius:13px;background:#444;position:relative;cursor:pointer;border:none;transition:background .2s;flex-shrink:0}
+.toggle.on{background:#10a37f}
+.toggle::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .2s}
+.toggle.on::after{transform:translateX(18px)}
+.skin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 0}
+.skin-item{padding:12px 6px;border-radius:10px;text-align:center;cursor:pointer;border:2px solid transparent;font-size:11px;color:#ddd}
+.skin-item.active{border-color:#10a37f}
+.skin-item .skin-dot{display:inline-block;width:20px;height:20px;border-radius:50%;margin-bottom:4px}
+.goal-widget{display:flex;align-items:center;gap:12px;padding:10px 0}
+.goal-widget button{width:30px;height:30px;border-radius:50%;border:1px solid #444;background:none;font-size:16px;cursor:pointer;color:#fff}
+.goal-widget .goal-num{font-size:18px;font-weight:bold;width:80px;text-align:center}
+/* ====== MATERIAL PICKER ====== */
+.mp-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;-webkit-overflow-scrolling:touch}
+.mp-tabs::-webkit-scrollbar{display:none}
+.mp-tab{flex-shrink:0;padding:6px 14px;border-radius:16px;font-size:12px;background:#2a2a2a;border:1px solid #333;cursor:pointer;color:#aaa}
+.mp-tab.active{background:#10a37f;color:#fff;border-color:#10a37f}
+.mp-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#ddd}
+.mp-item:active{background:#2a2a2a}
+.mp-item input[type=checkbox]{width:18px;height:18px;accent-color:#10a37f}
+.mp-preview{font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+/* ====== RELATIONSHIP GRAPH ====== */
+.graph-wrap{width:100%;height:100%;position:relative;overflow:hidden;background:#111}
+.graph-wrap canvas{width:100%;height:100%}
+/* ====== EDITOR ====== */
+.editor-toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid #2a2a2a;flex-wrap:wrap}
+.editor-toolbar button{background:none;border:1px solid #333;color:#aaa;padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer}
+.editor-toolbar button:active{background:#2a2a2a}
+.editor-toolbar .spacer{flex:1}
+.editor-toolbar .word-count{font-size:11px;color:#888}
+.editor-body{flex:1;padding:16px;overflow-y:auto;font-size:16px;line-height:1.8;color:#ddd;min-height:0;outline:none}
+.editor-body:empty::before{content:"开始写作...";color:#555}
+.editor-bottom{display:flex;gap:8px;padding:10px 16px;border-top:1px solid #2a2a2a;flex-shrink:0}
+.editor-bottom button{flex:1;padding:10px;border-radius:10px;border:1px solid #333;background:#1a1a1a;color:#ddd;font-size:13px;cursor:pointer}
+.editor-bottom button:active{background:#2a2a2a}
+.editor-bottom button.primary{background:#10a37f;color:#fff;border-color:#10a37f}
+/* ====== STATS ====== */
+.stat-card{margin:12px 16px;padding:16px;background:#1a1a1a;border-radius:12px;border:1px solid #2a2a2a}
+.stat-card h3{font-size:13px;color:#888;margin-bottom:10px}
+.stat-row{display:flex;gap:16px}
+.stat-num{font-size:24px;font-weight:bold;color:#10a37f}
+.stat-label{font-size:11px;color:#888}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;padding:16px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar{width:100%;border-radius:4px 4px 0 0;background:#10a37f;min-height:4px;transition:height .3s}
+.bar-label{font-size:10px;color:#666}
+.streak-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px}
+.streak-dot{width:100%;aspect-ratio:1;border-radius:50%;background:#2a2a2a}
+.streak-dot.filled{background:#10a37f}
+.streak-dot.today{background:#ffc107}
+.milestone-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #2a2a2a;font-size:13px}
+.milestone-item .mi-icon{font-size:20px}
+.progress-ring{width:80px;height:80px;position:relative;margin:0 auto}
+.progress-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.progress-ring circle{fill:none;stroke-width:6}
+.progress-ring .bg{stroke:#2a2a2a}
+.progress-ring .fg{stroke:#10a37f;stroke-linecap:round;transition:stroke-dashoffset .5s}
+.progress-ring .ring-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold}
+/* ====== PROOFREAD ====== */
+.proof-group{margin:12px 16px}
+.proof-group h3{font-size:13px;font-weight:600;margin-bottom:8px}
+.proof-item{padding:10px 12px;background:#1a1a1a;border-radius:8px;margin-bottom:6px;font-size:13px;line-height:1.6}
+.proof-item .original{text-decoration:line-through;color:#dc3545}
+.proof-item .suggested{color:#10a37f}
+.proof-item .arrow{margin:0 6px;color:#666}
+.fix-all-btn{margin:16px;padding:14px;border-radius:12px;background:#10a37f;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;width:calc(100% - 32px)}
+/* ====== SEARCH ====== */
+.search-input{margin:12px 16px;padding:12px 16px;border-radius:24px;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:14px;width:calc(100% - 32px);outline:none}
+.search-input:focus{border-color:#10a37f}
+.search-filters{display:flex;gap:6px;padding:0 16px;overflow-x:auto;margin-bottom:12px}
+.search-filters::-webkit-scrollbar{display:none}
+.sf-tab{flex-shrink:0;padding:6px 12px;border-radius:16px;font-size:12px;background:#2a2a2a;color:#aaa;cursor:pointer}
+.sf-tab.active{background:#10a37f;color:#fff}
+.search-result{padding:12px 16px;border-bottom:1px solid #2a2a2a}
+.search-result .sr-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.search-result .sr-snippet{font-size:12px;color:#888;line-height:1.5}
+.search-result .sr-snippet mark{background:rgba(16,163,127,.25);color:#10a37f;padding:0 2px;border-radius:2px}
+.search-result .sr-path{font-size:11px;color:#555;margin-top:4px}
+/* ====== POLISH ====== */
+.polish-styles{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;flex-wrap:wrap}
+.polish-styles::-webkit-scrollbar{display:none}
+.ps-tag{flex-shrink:0;padding:8px 16px;border-radius:20px;font-size:13px;background:#2a2a2a;color:#aaa;cursor:pointer;border:1px solid transparent}
+.ps-tag.active{border-color:#10a37f;color:#fff;background:rgba(16,163,127,.15)}
+.polish-text{margin:12px 16px;padding:14px;background:#1a1a1a;border-radius:10px;font-size:14px;line-height:1.7;color:#ccc}
+.polish-text .old{text-decoration:line-through;color:#dc3545}
+.polish-text .new{color:#10a37f;background:rgba(16,163,127,.1);padding:0 2px;border-radius:2px}
+/* ====== FULL REVIEW ====== */
+.review-cat{margin:12px 16px;padding:14px;background:#1a1a1a;border-radius:10px}
+.review-cat .rc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.review-cat .rc-title{font-size:14px;font-weight:500}
+.review-cat .rc-score{font-size:13px;color:#10a37f;font-weight:bold}
+.rc-bar{height:6px;border-radius:3px;background:#2a2a2a;overflow:hidden}
+.rc-bar .rc-fill{height:100%;border-radius:3px;background:#10a37f;transition:width .5s}
+.review-suggestion{padding:10px 16px;border-bottom:1px solid #2a2a2a;font-size:13px;line-height:1.6}
+.review-suggestion .rs-icon{margin-right:6px}
+/* ====== VOICE CALL ====== */
+.voice-full{position:absolute;inset:0;background:#0a0a0a;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center}
+.voice-full.open{display:flex}
+.voice-avatar{width:120px;height:120px;border-radius:50%;background:#2f2f2f;display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:24px}
+.voice-avatar::before,.voice-avatar::after{content:"";position:absolute;border-radius:50%;border:2px solid rgba(16,163,127,.3)}
+.voice-avatar::before{width:140px;height:140px;animation:pulse 2s infinite}
+.voice-avatar::after{width:160px;height:160px;animation:pulse 2s infinite .5s}
+@keyframes pulse{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+.voice-avatar svg{width:48px;height:48px;fill:#10a37f}
+.voice-name{font-size:20px;font-weight:600;margin-bottom:6px}
+.voice-status{font-size:14px;color:#888;margin-bottom:40px}
+.voice-controls{display:flex;gap:24px;align-items:center}
+.voice-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px}
+.voice-btn.mute{background:#2f2f2f;color:#fff}
+.voice-btn.end{background:#dc3545;color:#fff;width:64px;height:64px;font-size:26px}
+.voice-btn.speaker{background:#2f2f2f;color:#fff}
+.voice-transcript{position:absolute;top:60px;left:16px;right:16px;max-height:120px;overflow-y:auto;text-align:center;font-size:13px;color:#888;line-height:1.6}
+/* ====== AGENT MARKET ====== */
+.agent-market-card{margin:10px 16px;padding:14px;background:#1a1a1a;border-radius:12px;border:1px solid #2a2a2a;display:flex;gap:12px;align-items:center}
+.amc-icon{width:44px;height:44px;border-radius:10px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.amc-info{flex:1}
+.amc-info .amc-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.amc-info .amc-desc{font-size:12px;color:#888;line-height:1.4}
+.amc-toggle{padding:6px 14px;border-radius:16px;font-size:12px;border:1px solid #333;background:none;color:#aaa;cursor:pointer}
+.amc-toggle.on{background:#10a37f;color:#fff;border-color:#10a37f}
+/* ====== WATER REPORT ====== */
+.gauge{width:140px;height:70px;margin:20px auto;position:relative;overflow:hidden}
+.gauge-bg{width:140px;height:70px;border-radius:70px 70px 0 0;background:conic-gradient(from 0.75turn,#10a37f 0deg,#ffc107 90deg,#dc3545 180deg);position:absolute}
+.gauge-mask{width:110px;height:55px;border-radius:55px 55px 0 0;background:#000;position:absolute;bottom:0;left:15px}
+.gauge-needle{width:2px;height:50px;background:#fff;position:absolute;bottom:0;left:50%;transform-origin:bottom center;transform:rotate(-30deg);transition:transform .5s}
+.gauge-value{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:24px;font-weight:bold}
+.water-item{margin:8px 16px;padding:12px;background:#1a1a1a;border-radius:8px;border-left:3px solid #ffc107}
+.water-item.high{border-left-color:#dc3545}
+.water-item.low{border-left-color:#10a37f}
+/* ====== SHUANGDIAN ====== */
+.timeline{position:relative;margin:16px 24px;padding-left:20px;border-left:2px solid #2a2a2a}
+.tl-item{position:relative;padding:10px 0 20px 16px;font-size:13px;line-height:1.5}
+.tl-item::before{content:"";position:absolute;left:-25px;top:12px;width:10px;height:10px;border-radius:50%;background:#10a37f;border:2px solid #000}
+.tl-item.warn::before{background:#ffc107}
+.tl-item.bad::before{background:#dc3545}
+.tl-item .tl-ch{font-weight:600;margin-bottom:2px}
+.tl-item .tl-desc{color:#888;font-size:12px}
+/* ====== TITLE GENERATOR ====== */
+.title-card{margin:10px 16px;padding:14px;background:#1a1a1a;border-radius:10px;display:flex;align-items:center;gap:10px;border:1px solid #2a2a2a}
+.title-card .tc-text{flex:1;font-size:15px;font-weight:500}
+.title-card .tc-tags{display:flex;gap:4px;margin-top:4px}
+.title-card .tc-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#2a2a2a;color:#888}
+.title-card .tc-use{padding:6px 12px;border-radius:8px;background:#10a37f;color:#fff;border:none;font-size:12px;cursor:pointer;white-space:nowrap}
+/* ====== STYLE SELECTOR ====== */
+.style-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:16px}
+.style-card{padding:16px 12px;border-radius:12px;background:#1a1a1a;border:2px solid transparent;text-align:center;cursor:pointer}
+.style-card.selected{border-color:#10a37f;background:rgba(16,163,127,.08)}
+.style-card .sc-icon{font-size:28px;margin-bottom:6px}
+.style-card .sc-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.style-card .sc-desc{font-size:11px;color:#888}
+/* ====== USER MEMORY ====== */
+.memory-item{margin:10px 16px;padding:12px;background:#1a1a1a;border-radius:10px;display:flex;align-items:flex-start;gap:10px}
+.memory-item .mi-content{flex:1}
+.memory-item .mi-cat{font-size:11px;color:#10a37f;margin-bottom:4px}
+.memory-item .mi-key{font-size:13px;font-weight:500}
+.memory-item .mi-val{font-size:12px;color:#888;margin-top:2px}
+.memory-item .mi-del{background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:4px}
+/* ====== MATERIAL EDITOR ====== */
+.me-tabs{display:flex;border-bottom:1px solid #2a2a2a}
+.me-tab{flex:1;padding:12px;text-align:center;font-size:13px;cursor:pointer;color:#888;border-bottom:2px solid transparent}
+.me-tab.active{color:#fff;border-bottom-color:#10a37f}
+.me-field{margin:12px 16px}
+.me-field label{display:block;font-size:12px;color:#888;margin-bottom:6px}
+.me-field input,.me-field textarea,.me-field select{width:100%;padding:10px 12px;border-radius:8px;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:14px;outline:none;font-family:inherit}
+.me-field textarea{min-height:80px;resize:vertical}
+.me-field input:focus,.me-field textarea:focus{border-color:#10a37f}
+/* ====== MISC ====== */
+.empty-placeholder{padding:40px;text-align:center;color:#555;font-size:14px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes dot{to{opacity:.3;transform:translateY(-4px)}}
+</style>
+</head>
+<body>
+<div class="phone" id="app">
+
+<!-- ====== TOP BAR ====== -->
+<div class="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="title-area" onclick="toggleModel()">
+    <div class="app-name">网文写作IDE</div>
+    <div class="model-pill" id="modelPill">GLM-4.7-Flash</div>
+  </div>
+  <button class="new-btn" onclick="newChat()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+  </button>
+  <button class="new-btn" onclick="openSettings()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</div>
+
+<!-- ====== MODEL DROPDOWN ====== -->
+<div class="model-dropdown" id="modelDD">
+  <div class="model-item active" onclick="selectModel(this,'GLM-4.7-Flash')">GLM-4.7-Flash <span class="free-tag">内置免费</span></div>
+  <div class="model-item" onclick="selectModel(this,'GLM-4.6V-Flash')">GLM-4.6V-Flash <span class="free-tag">多模态</span></div>
+  <div class="model-item" onclick="selectModel(this,'GLM-4.1V-Thinking')">GLM-4.1V-Thinking <span class="free-tag">思考版</span></div>
+  <div class="model-divider"></div>
+  <div class="model-item" onclick="selectModel(this,'GPT-4o')">GPT-4o</div>
+  <div class="model-item" onclick="selectModel(this,'Claude Sonnet')">Claude Sonnet</div>
+  <div class="model-item" onclick="selectModel(this,'DeepSeek V3')">DeepSeek V3</div>
+  <div class="model-item" onclick="selectModel(this,'本地 Ollama')">本地 Ollama</div>
+  <div class="model-divider"></div>
+  <div class="model-item" style="color:#10a37f;font-size:13px" onclick="closeModel();openSettings()">⚙ 管理模型</div>
+</div>
+
+<!-- ====== CHAT AREA ====== -->
+<div class="chat" id="chatArea">
+  <div class="msg ai">
+    <div class="avatar ai-av"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM12 14C10.895 14 10 13.105 10 12C10 10.895 10.895 10 12 10C13.105 10 14 10.895 14 12C14 13.105 13.105 14 12 14Z"/></svg></div>
+    <div class="bubble">欢迎使用网文写作IDE！我可以帮助你构思大纲、创建角色、润色文字、分析爽点分布。试试在下方输入框打字，或点击 "+" 探索更多功能。</div>
+  </div>
+  <div id="chatEnd"></div>
+</div>
+
+<!-- ====== INPUT BAR ====== -->
+<div class="input-area">
+  <div class="capsule">
+    <button class="plus-btn" onclick="openSheet()">+</button>
+    <textarea id="chatInput" rows="1" placeholder="Message" oninput="autoGrow(this);toggleSend()"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="handleSend()" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+    <button class="send-btn" id="micBtn" onclick="handleMic()" style="background:#444">
+      <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="#fff" stroke-width="2"/><line x1="12" y1="19" x2="12" y2="23" stroke="#fff" stroke-width="2"/><line x1="8" y1="23" x2="16" y2="23" stroke="#fff" stroke-width="2"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ====== SIDEBAR ====== -->
+<div class="overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <button class="new-session-btn" onclick="newChat();closeSidebar()">+ 新会话</button>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">历史会话</div>
+    <div class="sb-item">都市神医开篇讨论<span class="time">今天 14:30</span></div>
+    <div class="sb-item">大纲优化建议<span class="time">昨天 20:15</span></div>
+    <div class="sb-item">角色关系梳理<span class="time">5月28日</span></div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">作品</div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📖 都市神医 <span class="badge count">3卷15章</span></div>
+    <div class="tree-children">
+      <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📁 第一卷 潜龙在渊 <span class="badge count">5章</span></div>
+      <div class="tree-children">
+        <div class="tree-leaf" onclick="openChapter('第1章 退婚','草稿',3000)">📄 第1章 退婚 <span class="badge draft">草稿</span></div>
+        <div class="tree-leaf" onclick="openChapter('第2章 偶遇','已完成',4500)">📄 第2章 偶遇 <span class="badge done">已完成</span></div>
+        <div class="tree-leaf">📄 第3章 觉醒 <span class="badge empty">未写</span></div>
+      </div>
+      <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📁 第二卷 初露锋芒 <span class="badge count">5章</span></div>
+      <div class="tree-children">
+        <div class="tree-leaf">📄 第6章 龙城 <span class="badge draft">草稿</span></div>
+        <div class="tree-leaf">📄 第7章 挑战 <span class="badge empty">未写</span></div>
+      </div>
+    </div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📖 斗破苍穹 <span class="badge count">2卷8章</span></div>
+    <div class="tree-children">
+      <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📁 第一卷 废柴逆袭 <span class="badge count">5章</span></div>
+      <div class="tree-children">
+        <div class="tree-leaf">📄 第1章 萧炎 <span class="badge done">已完成</span></div>
+        <div class="tree-leaf">📄 第2章 药老 <span class="badge draft">草稿</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">资料库</div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>👤 角色 (3) <span style="margin-left:auto;font-size:10px;color:#10a37f;cursor:pointer;padding:2px 6px" onclick="event.stopPropagation();closeSidebar();openRelGraph()">🤝 关系图</span></div>
+    <div class="tree-children">
+      <div class="tree-leaf" onclick="closeSidebar();openMaterialEditor('角色','林逸')">林逸 [主角]</div>
+      <div class="tree-leaf" onclick="closeSidebar();openMaterialEditor('角色','苏雨涵')">苏雨涵 [女主]</div>
+      <div class="tree-leaf" onclick="closeSidebar();openMaterialEditor('角色','赵天明')">赵天明 [反派]</div>
+    </div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>⚙ 设定 (2)</div>
+    <div class="tree-children">
+      <div class="tree-leaf">灵气复苏 [世界观]</div>
+      <div class="tree-leaf">九大境界 [战力体系]</div>
+    </div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>💡 伏笔 (1)</div>
+    <div class="tree-children"><div class="tree-leaf">主角身世之谜</div></div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>🏛 势力 (0)</div>
+    <div class="tree-children"></div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📦 道具 (0)</div>
+    <div class="tree-children"></div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>📚 参考 (0)</div>
+    <div class="tree-children"></div>
+    <div class="tree-node" onclick="toggleTree(this)"><span class="tree-arrow">&#9654;</span>🧠 记忆包</div>
+    <div class="tree-children"></div>
+  </div>
+  <div class="sb-footer">
+    <button onclick="closeSidebar();openExport()">📤 导出</button>
+    <button onclick="alert('导入功能：支持 ZIP 工作树包')">📥 导入</button>
+  </div>
+</div>
+
+<!-- ====== RIGHT PANEL (Chapter detail) ====== -->
+<div class="overlay" id="rpOverlay" onclick="closeChapter()"></div>
+<div class="right-panel" id="rightPanel">
+  <div class="rp-header">
+    <button class="close-btn" onclick="closeChapter()">✕</button>
+    <h3 id="rpTitle">第1章 退婚</h3>
+  </div>
+  <div style="margin-bottom:12px">
+    <span class="badge draft" id="rpStatus" style="margin-left:0">草稿</span>
+    <span style="font-size:12px;color:#888;margin-left:8px" id="rpWords">3000 字</span>
+  </div>
+  <div style="font-size:12px;color:#888;margin-bottom:16px;line-height:1.6"><b>梗概：</b>林逸退伍归来，在家族宴会上遭遇未婚妻当众退婚。他忍辱离开，却在巷子里救下一位神秘老者...</div>
+  <div style="border-top:1px solid #2a2a2a;padding-top:8px">
+    <div class="rp-action" onclick="closeChapter();openEditor()">✏ 编辑章节</div>
+    <div class="rp-action">📝 编辑梗概</div>
+    <div class="rp-action">🔄 改状态</div>
+    <div class="rp-action">✂ 拆分章节</div>
+    <div class="rp-action">📤 导出此章</div>
+    <div class="rp-action danger">🗑 删除章节</div>
+  </div>
+</div>
+
+<!-- ====== BOTTOM SHEET ====== -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-grid">
+    <div class="sheet-item" onclick="closeSheet();openVoiceCall()"><span class="si-icon">🎙</span>语音输入<span class="si-sub">语音转文字</span></div>
+    <div class="sheet-item" onclick="closeSheet();alert('上传文件：支持 TXT/DOCX/PDF 格式')"><span class="si-icon">📎</span>上传文件<span class="si-sub">TXT/DOCX/PDF</span></div>
+    <div class="sheet-item" onclick="closeSheet();openMatPicker()"><span class="si-icon">📚</span>选择资料<span class="si-sub">发给AI上下文</span></div>
+    <div class="sheet-item" onclick="closeSheet();alert('模板库：都市/玄幻/言情/悬疑/历史等')"><span class="si-icon">📋</span>选择模板<span class="si-sub">写作模板库</span></div>
+    <div class="sheet-item" onclick="closeSheet();openStyleSelector()"><span class="si-icon">🍅</span>番茄写作<span class="si-sub">风格预设</span></div>
+    <div class="sheet-item" onclick="closeSheet();openVoiceCall()"><span class="si-icon">💬</span>语音通话<span class="si-sub">实时AI对话</span></div>
+    <div class="sheet-item" onclick="closeSheet();openStats()"><span class="si-icon">📊</span>写作统计<span class="si-sub">字数趋势</span></div>
+    <div class="sheet-item" onclick="closeSheet();openSettings()"><span class="si-icon">⚙</span>更多设置<span class="si-sub">模型/外观/数据</span></div>
+  </div>
+  <div style="margin-top:16px">
+    <div style="font-size:12px;color:#888;margin-bottom:8px">🤖 Agent（智能体）</div>
+    <div class="agent-grid">
+      <div class="agent-card active" onclick="closeSheet();openShuangdian()"><div class="an">🔥 爽点检查器</div><div class="ad">检测章节爽点分布</div></div>
+      <div class="agent-card" onclick="closeSheet();openWaterReport()"><div class="an">💧 水文检测器</div><div class="ad">找出注水段落</div></div>
+      <div class="agent-card" onclick="closeSheet();openOutline()"><div class="an">🎯 大纲生成器</div><div class="ad">自动生成多卷大纲</div></div>
+      <div class="agent-card" onclick="closeSheet();openTitleGen()"><div class="an">💬 标题生成器</div><div class="ad">生成章节标题</div></div>
+      <div class="agent-card" onclick="closeSheet();openReview()"><div class="an">📋 全文审查</div><div class="ad">节奏/角色/逻辑审查</div></div>
+    </div>
+    <div style="font-size:12px;color:#888;margin:12px 0 8px">✨ Skill（写作技巧）</div>
+    <div class="agent-grid">
+      <div class="agent-card" onclick="closeSheet()"><div class="an">📖 金庸风格</div><div class="ad">武侠文风</div></div>
+      <div class="agent-card" onclick="closeSheet()"><div class="an">🔥 爽文模板</div><div class="ad">快节奏升级</div></div>
+      <div class="agent-card" onclick="closeSheet()"><div class="an">📝 文学润色</div><div class="ad">提升文笔</div></div>
+    </div>
+    <div style="font-size:12px;color:#888;margin:12px 0 8px">🍅 番茄写作</div>
+    <div class="agent-grid">
+      <div class="agent-card" onclick="closeSheet()"><div class="an">🏙 都市爽文</div><div class="ad">快节奏升级流</div></div>
+      <div class="agent-card" onclick="closeSheet()"><div class="an">💕 言情甜宠</div><div class="ad">轻松甜蜜</div></div>
+      <div class="agent-card" onclick="closeSheet()"><div class="an">🔍 悬疑推理</div><div class="ad">烧脑反转</div></div>
+    </div>
+    <div style="font-size:12px;color:#888;margin:12px 0 8px">🗣 对话</div>
+    <div class="agent-grid">
+      <div class="agent-card" onclick="closeSheet();openVoiceCall()"><div class="an">📞 语音通话</div><div class="ad">实时AI对话</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== EXPORT PANEL ====== -->
+<div class="slide-panel" id="exportPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('exportPanel')">←</button><h2>导出作品</h2></div>
+  <div style="padding:12px 16px;font-size:13px;color:#888">选择导出格式：</div>
+  <div class="export-card"><div class="ec-name">📦 ZIP 工作树包</div><div class="ec-desc">原始文件 + 工作文件 + 记忆包</div></div>
+  <div class="export-card"><div class="ec-name">📖 EPUB 电子书</div><div class="ec-desc">标准EPUB3格式，支持目录导航</div></div>
+  <div class="export-card"><div class="ec-name">📄 DOCX 文档</div><div class="ec-desc">Word格式，WPS/Office可编辑</div></div>
+  <div class="export-opt"><label><input type="checkbox" checked> 包含原始备份文件</label></div>
+  <div class="export-opt"><label><input type="checkbox" checked> 包含记忆包</label></div>
+  <div class="export-opt"><label><input type="checkbox"> 仅选中章节</label></div>
+  <div style="padding:16px"><button style="width:100%;padding:14px;border-radius:12px;background:#10a37f;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer" onclick="alert('开始导出...')">📤 开始导出</button></div>
+</div>
+
+<!-- ====== RELATIONSHIP GRAPH ====== -->
+<div class="slide-panel" id="relPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('relPanel')">←</button><h2>角色关系图</h2></div>
+  <div class="graph-wrap"><canvas id="graphCanvas"></canvas></div>
+</div>
+
+<!-- ====== SETTINGS ====== -->
+<div class="slide-panel" id="settingsPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('settingsPanel')">←</button><h2>设置</h2></div>
+  <div class="settings-section"><h3>AI 模型</h3>
+    <div class="setting-item"><span class="si-label">模型配置</span><span class="si-sublabel">7个已配置</span><span class="si-arrow">›</span></div>
+    <div class="setting-item" onclick="closePanel('settingsPanel');openUserMemory()"><span class="si-label">🧠 用户记忆</span><span class="si-sublabel">记录写作风格</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label">🎙 语音模型</span><span class="si-sublabel" style="color:orange">待配置</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label">✨ Skill 管理</span><span class="si-sublabel">AI写作技巧</span><span class="si-arrow">›</span></div>
+  </div>
+  <div class="settings-section"><h3>番茄写作</h3>
+    <div class="setting-item" onclick="closePanel('settingsPanel');openAgentMarket()"><span class="si-label">🤖 Agent 市场</span><span class="si-sublabel">智能体工具</span><span class="si-arrow">›</span></div>
+    <div class="setting-item" style="cursor:default"><span class="si-label">每日字数目标</span>
+      <div class="goal-widget"><button onclick="adjustGoal(-500)">-</button><span class="goal-num" id="goalNum">3000</span><button onclick="adjustGoal(500)">+</button></div>
+    </div>
+    <div class="setting-item" onclick="closePanel('settingsPanel');openStats()"><span class="si-label">📊 写作统计</span><span class="si-sublabel">字数趋势/打卡</span><span class="si-arrow">›</span></div>
+  </div>
+  <div class="settings-section"><h3>外观</h3>
+    <div class="setting-item" style="cursor:default"><span class="si-label">深色模式</span><button class="toggle on" id="darkToggle" onclick="this.classList.toggle('on')"></button></div>
+    <div style="padding:8px 0">
+      <div style="font-size:14px;margin-bottom:8px">主题皮肤</div>
+      <div class="skin-grid">
+        <div class="skin-item active" style="background:#1a1a1a"><div class="skin-dot" style="background:#000;border:1px solid #444"></div>暗夜</div>
+        <div class="skin-item" style="background:#fff;color:#000"><div class="skin-dot" style="background:#fff;border:1px solid #ddd"></div>纯白</div>
+        <div class="skin-item" style="background:#0d1b2a"><div class="skin-dot" style="background:#1b3a5c"></div>深海</div>
+        <div class="skin-item" style="background:#1a2e1a"><div class="skin-dot" style="background:#2d5a2d"></div>森林</div>
+        <div class="skin-item" style="background:#2e1a2e"><div class="skin-dot" style="background:#5c2d5c"></div>紫夜</div>
+        <div class="skin-item" style="background:#2e2a1a"><div class="skin-dot" style="background:#8b6914"></div>琥珀</div>
+        <div class="skin-item" style="background:#1a2a2e"><div class="skin-dot" style="background:#2d6a6a"></div>青石</div>
+        <div class="skin-item" style="background:#2e1a1a"><div class="skin-dot" style="background:#8b2d2d"></div>朱砂</div>
+      </div>
+    </div>
+    <div class="setting-item"><span class="si-label">字体设置</span><span class="si-sublabel">字号/行高</span><span class="si-arrow">›</span></div>
+  </div>
+  <div class="settings-section"><h3>数据管理</h3>
+    <div class="setting-item"><span class="si-label">📦 备份所有作品</span><span class="si-sublabel">.zip压缩包</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label">🔄 恢复备份</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label" style="color:#dc3545">🗑 清空所有数据</span></div>
+  </div>
+  <div class="settings-section"><h3>其他</h3>
+    <div class="setting-item"><span class="si-label">📄 软件配置</span><span class="si-sublabel">自定义行为</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label">📢 公告</span><span class="si-sublabel">免费AI模型说明</span><span class="si-arrow">›</span></div>
+    <div class="setting-item"><span class="si-label">ℹ 关于</span><span class="si-sublabel">网文写作IDE · 完全单机</span><span class="si-arrow">›</span></div>
+  </div>
+  <div style="height:40px"></div>
+</div>
+
+<!-- ====== EDITOR PAGE ====== -->
+<div class="slide-panel" id="editorPanel" style="display:flex;flex-direction:column">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('editorPanel')">←</button><h2 id="editorTitle">第1章 退婚</h2><button class="back-btn" style="font-size:16px" onclick="alert('章节操作：改状态/拆分/导出/删除')">⋯</button></div>
+  <div class="editor-toolbar">
+    <button onclick="alert('撤销')">↩ 撤销</button>
+    <button onclick="alert('重做')">↪ 重做</button>
+    <button style="border-color:#10a37f;color:#10a37f" onclick="closePanel('editorPanel');openSearch()">🔍 查找</button>
+    <button onclick="alert('替换')">替换</button>
+    <div class="spacer"></div>
+    <span class="word-count" id="editorWordCount">3,286 字</span>
+  </div>
+  <div class="editor-body" contenteditable="true" id="editorBody" oninput="updateEditorWordCount()">
+    <p>林逸站在宴会厅的门口，看着里面觥筹交错的景象，嘴角泛起一丝苦涩的笑意。三年了，他终于从部队回来了。</p>
+    <p>他本以为迎接他的会是温暖的拥抱和亲切的问候，然而现实却给了他一记响亮的耳光。</p>
+    <p>"林逸？你怎么来了？"一个尖锐的女声从人群中传来。那是他的未婚妻，赵雪儿。</p>
+    <p>赵雪儿身着华丽的红色礼服，妆容精致，身边挽着一个西装革履的男人。她看着林逸，眼中没有惊喜，只有厌恶。</p>
+    <p>"我回来告诉你一个消息，"赵雪儿冷冷地说，"我们的婚约，作废了。"</p>
+    <p>宴会厅里顿时安静下来，所有人的目光都聚焦在林逸身上。有同情，有嘲讽，更多的是幸灾乐祸。</p>
+    <p>林逸没有说话，只是静静地看了赵雪儿一眼，然后转身走向门口。</p>
+    <p>"等一下。"一个低沉苍老的声音从角落里传来。一位白发老者拄着拐杖慢慢站起身，目光深邃地看着林逸。</p>
+    <p>"年轻人，你身上有一种我很熟悉的东西。"老者微笑着说，"跟老夫走一趟如何？"</p>
+    <p>林逸停下脚步，回头看了老者一眼。他不知道的是，这一眼将彻底改变他的命运。</p>
+  </div>
+  <div class="editor-bottom">
+    <button>常用词</button>
+    <button onclick="closePanel('editorPanel');openProofread()">校对</button>
+    <button class="primary" onclick="closePanel('editorPanel');openPolish()">AI 润色</button>
+  </div>
+</div>
+
+<!-- ====== OUTLINE PAGE ====== -->
+<div class="slide-panel" id="outlinePanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('outlinePanel')">←</button><h2>大纲管理</h2></div>
+  <div style="padding:12px 16px">
+    <select style="width:100%;padding:10px;border-radius:8px;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:14px">
+      <option>都市神医</option>
+      <option>斗破苍穹</option>
+    </select>
+  </div>
+  <div style="padding:0 16px">
+    <div class="review-cat">
+      <div class="rc-header"><span class="rc-title">🌍 世界观设定</span></div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-top:8px">现代都市背景，灵气复苏后人类觉醒远古血脉，修炼体系从炼气到道祖共九个境界。各大世家争夺灵脉资源，主角以退伍军人身份卷入修炼界纷争。</div>
+    </div>
+    <div class="review-cat">
+      <div class="rc-header"><span class="rc-title">👥 主要角色</span></div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-top:8px">林逸（主角）：退伍特种兵，觉醒远古血脉<br>苏雨涵（女主）：苏家千金，外柔内刚<br>赵天明（反派）：赵家家主之子，野心勃勃<br>白发老者（师父）：神秘高人，引导主角修炼</div>
+    </div>
+    <div class="review-cat">
+      <div class="rc-header"><span class="rc-title">📖 第一卷：觉醒</span><span class="rc-score">5章</span></div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-top:8px">
+        第1章 退婚：主角遭遇退婚，偶遇老者<br>
+        第2章 偶遇：跟随老者进入修炼世界<br>
+        第3章 觉醒：远古血脉首次觉醒<br>
+        第4章 修炼：开始修炼基础功法<br>
+        第5章 初战：首次以修炼者身份战斗
+      </div>
+    </div>
+    <div class="review-cat">
+      <div class="rc-header"><span class="rc-title">📖 第二卷：初露锋芒</span><span class="rc-score">5章</span></div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-top:8px">
+        进入龙城修炼学院，结识新盟友，揭露赵家阴谋...
+      </div>
+    </div>
+    <div class="review-cat">
+      <div class="rc-header"><span class="rc-title">📈 故事主线</span></div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-top:8px">从被人唾弃的退伍兵到修炼界传奇的逆袭之路。主线冲突：主角身世之谜与灵气复苏的真相。</div>
+    </div>
+  </div>
+  <div style="padding:16px;text-align:center"><button style="padding:12px 32px;border-radius:24px;background:#10a37f;color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer" onclick="alert('AI正在生成大纲...')">✨ AI生成大纲</button></div>
+</div>
+
+<!-- ====== STATS PAGE ====== -->
+<div class="slide-panel" id="statsPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('statsPanel')">←</button><h2>写作统计</h2></div>
+  <div class="stat-card">
+    <h3>今日数据</h3>
+    <div class="stat-row">
+      <div><div class="stat-num">1,286</div><div class="stat-label">已写字数</div></div>
+      <div><div class="stat-num">45</div><div class="stat-label">写作分钟</div></div>
+      <div><div class="stat-num">3</div><div class="stat-label">会话次数</div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <h3>7日字数趋势</h3>
+    <div class="bar-chart">
+      <div class="bar-col"><div class="bar" style="height:40%"></div><div class="bar-label">一</div></div>
+      <div class="bar-col"><div class="bar" style="height:70%"></div><div class="bar-label">二</div></div>
+      <div class="bar-col"><div class="bar" style="height:55%"></div><div class="bar-label">三</div></div>
+      <div class="bar-col"><div class="bar" style="height:90%"></div><div class="bar-label">四</div></div>
+      <div class="bar-col"><div class="bar" style="height:30%"></div><div class="bar-label">五</div></div>
+      <div class="bar-col"><div class="bar" style="height:65%"></div><div class="bar-label">六</div></div>
+      <div class="bar-col"><div class="bar" style="height:80%"></div><div class="bar-label">日</div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <h3>连续打卡</h3>
+    <div class="streak-grid">
+      <div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot"></div><div class="streak-dot filled"></div>
+      <div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div>
+      <div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot filled"></div><div class="streak-dot today"></div><div class="streak-dot"></div><div class="streak-dot"></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <h3>里程碑</h3>
+    <div class="milestone-item"><span class="mi-icon">🏅</span><span>累计 50,000 字</span><span style="margin-left:auto;font-size:12px;color:#10a37f">已达成</span></div>
+    <div class="milestone-item"><span class="mi-icon">🎯</span><span>连续 7 天打卡</span><span style="margin-left:auto;font-size:12px;color:#10a37f">已达成</span></div>
+    <div class="milestone-item"><span class="mi-icon">📝</span><span>完成 30 章</span><span style="margin-left:auto;font-size:12px;color:#888">15/30</span></div>
+  </div>
+  <div class="stat-card">
+    <h3>每日目标进度</h3>
+    <div class="progress-ring">
+      <svg viewBox="0 0 36 36">
+        <circle class="bg" cx="18" cy="18" r="15.5" stroke-dasharray="97.4" stroke-dashoffset="0"/>
+        <circle class="fg" cx="18" cy="18" r="15.5" stroke-dasharray="97.4" stroke-dashoffset="25"/>
+      </svg>
+      <div class="ring-text">43%</div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#888;margin-top:8px">1,286 / 3,000 字</div>
+  </div>
+  <div style="height:40px"></div>
+</div>
+
+<!-- ====== PROOFREAD PAGE ====== -->
+<div class="slide-panel" id="proofreadPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('proofreadPanel')">←</button><h2>校对报告</h2></div>
+  <div style="padding:30px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🔍</div>
+    <div style="font-size:14px;color:#888">扫描完成 · 耗时 1.2 秒</div>
+  </div>
+  <div class="proof-group">
+    <h3>🔴 错别字 (3)</h3>
+    <div class="proof-item"><span class="original">退五归来</span><span class="arrow">→</span><span class="suggested">退伍归来</span></div>
+    <div class="proof-item"><span class="original">觥筹交错</span><span class="arrow">→</span><span class="suggested">觥筹交错</span> <span style="color:#28a745;margin-left:6px">✓ 正确</span></div>
+    <div class="proof-item"><span class="original">当众退昏</span><span class="arrow">→</span><span class="suggested">当众退婚</span></div>
+  </div>
+  <div class="proof-group">
+    <h3>🟡 标点错误 (5)</h3>
+    <div class="proof-item">第3段："林逸？你怎么来了。"<span class="arrow">→</span><span class="suggested">林逸？你怎么来了？</span></div>
+    <div class="proof-item">第5段：句尾缺少句号 <span class="arrow">→</span><span class="suggested">添加"。"</span></div>
+  </div>
+  <div class="proof-group">
+    <h3>🔵 重复用词 (2)</h3>
+    <div class="proof-item">"静静"出现3次 <span class="arrow">→</span><span class="suggested">改为"默默地"</span></div>
+    <div class="proof-item">"冷笑"出现2次 <span class="arrow">→</span><span class="suggested">改为"嘲讽地笑了笑"</span></div>
+  </div>
+  <div class="proof-group">
+    <h3>⚪ 格式问题 (1)</h3>
+    <div class="proof-item">第2段首行缩进不一致 <span class="arrow">→</span><span class="suggested">统一为两个字符缩进</span></div>
+  </div>
+  <div style="padding:16px"><button class="fix-all-btn" onclick="alert('已修复全部问题')">一键修复全部</button></div>
+</div>
+
+<!-- ====== GLOBAL SEARCH PAGE ====== -->
+<div class="slide-panel" id="searchPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('searchPanel')">←</button><h2>全局搜索</h2></div>
+  <input class="search-input" type="text" placeholder="搜索角色、设定、章节...">
+  <div class="search-filters">
+    <div class="sf-tab active">全部</div>
+    <div class="sf-tab" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">角色</div>
+    <div class="sf-tab" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">设定</div>
+    <div class="sf-tab" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">章节</div>
+    <div class="sf-tab" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">伏笔</div>
+  </div>
+  <div class="search-result"><div class="sr-title">👤 林逸</div><div class="sr-snippet"><mark>林逸</mark>站在宴会厅的门口，看着里面觥筹交错的景象</div><div class="sr-path">作品 > 都市神医 > 第一卷 > 第1章</div></div>
+  <div class="search-result"><div class="sr-title">👤 林逸</div><div class="sr-snippet"><mark>林逸</mark>没有说话，只是静静地看了赵雪儿一眼</div><div class="sr-path">作品 > 都市神医 > 第一卷 > 第1章</div></div>
+  <div class="search-result"><div class="sr-title">👤 赵天明</div><div class="sr-snippet"><mark>赵天明</mark>在家族宴会上露出了得意的笑容</div><div class="sr-path">资料库 > 角色 > 赵天明</div></div>
+  <div class="search-result"><div class="sr-title">⚙ 灵气复苏</div><div class="sr-snippet">现代都市背景，<mark>灵气复苏</mark>后人类觉醒远古血脉</div><div class="sr-path">资料库 > 设定 > 灵气复苏</div></div>
+  <div class="search-result"><div class="sr-title">💡 主角身世之谜</div><div class="sr-snippet"><mark>主角身世之谜</mark>与灵气复苏的真相密切相关</div><div class="sr-path">资料库 > 伏笔 > 主角身世之谜</div></div>
+</div>
+
+<!-- ====== POLISH ENGINE PAGE ====== -->
+<div class="slide-panel" id="polishPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('polishPanel')">←</button><h2>AI润色</h2></div>
+  <div style="padding:12px 16px;font-size:13px;color:#888">选择风格：</div>
+  <div class="polish-styles">
+    <div class="ps-tag active" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">文学</div>
+    <div class="ps-tag" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">通俗</div>
+    <div class="ps-tag" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">武侠</div>
+    <div class="ps-tag" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">悬疑</div>
+    <div class="ps-tag" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">科幻</div>
+  </div>
+  <div style="padding:0 16px;font-size:12px;color:#888;margin-bottom:6px">原文预览：</div>
+  <div class="polish-text">林逸站在宴会厅的门口，看着里面觥筹交错的景象，嘴角泛起一丝苦涩的笑意。三年了，他终于从部队回来了。</div>
+  <div style="text-align:center;padding:16px"><button style="padding:12px 32px;border-radius:24px;background:#10a37f;color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer" onclick="showPolishResult()">✨ 开始润色</button></div>
+  <div id="polishResult" style="display:none">
+    <div style="padding:0 16px;font-size:12px;color:#888;margin-bottom:6px">润色结果：</div>
+    <div class="polish-text">
+      <span class="new">林逸独立于宴会厅的门扉之侧</span>，<span class="old">看着</span><span class="new">凝视着</span>厅内<span class="old">觥筹交错的</span><span class="new">灯火阑珊、觥筹交错的</span>景象，唇角不由泛起一抹<span class="old">苦涩的</span><span class="new">难以言喻的苦涩</span>笑意。<span class="old">三年了，他终于从部队回来了。</span><span class="new">三载春秋倏忽而过，他终于踏上了归途。</span>
+    </div>
+  </div>
+</div>
+
+<!-- ====== FULL TEXT REVIEW PAGE ====== -->
+<div class="slide-panel" id="reviewPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('reviewPanel')">←</button><h2>全文审查</h2></div>
+  <div style="padding:12px 16px;font-size:13px;color:#888">审查范围：都市神医 · 第一卷</div>
+  <div class="review-cat">
+    <div class="rc-header"><span class="rc-title">📊 节奏分析</span><span class="rc-score">7.5/10</span></div>
+    <div class="rc-bar"><div class="rc-fill" style="width:75%"></div></div>
+  </div>
+  <div class="review-cat">
+    <div class="rc-header"><span class="rc-title">👥 角色一致性</span><span class="rc-score">8.2/10</span></div>
+    <div class="rc-bar"><div class="rc-fill" style="width:82%"></div></div>
+  </div>
+  <div class="review-cat">
+    <div class="rc-header"><span class="rc-title">💡 伏笔回收</span><span class="rc-score">6.0/10</span></div>
+    <div class="rc-bar"><div class="rc-fill" style="width:60%"></div></div>
+  </div>
+  <div class="review-cat">
+    <div class="rc-header"><span class="rc-title">🔧 逻辑漏洞</span><span class="rc-score">8.8/10</span></div>
+    <div class="rc-bar"><div class="rc-fill" style="width:88%"></div></div>
+  </div>
+  <div style="padding:16px 16px 8px;font-size:13px;font-weight:600">AI 建议</div>
+  <div class="review-suggestion"><span class="rs-icon">⚡</span>第3章觉醒场景过于突兀，建议增加2-3段铺垫，让读者更好地接受主角血脉觉醒的设定。</div>
+  <div class="review-suggestion"><span class="rs-icon">⚠️</span>赵雪儿角色目前只有"恶毒前女友"的单一维度，建议在后续章节中补充她的内心矛盾和背景故事。</div>
+  <div class="review-suggestion"><span class="rs-icon">💡</span>白发老者出场可以更有仪式感，考虑在第1章末尾留下更多悬念，而非直接邀请。</div>
+  <div class="review-suggestion"><span class="rs-icon">✅</span>第1章节奏紧凑，开场冲突设置得很好，退婚场景有张力。</div>
+  <div style="padding:16px"><button style="width:100%;padding:14px;border-radius:12px;background:#2f2f2f;color:#fff;border:1px solid #444;font-size:14px;cursor:pointer" onclick="alert('报告已导出为PDF')">📤 导出报告</button></div>
+</div>
+
+<!-- ====== VOICE CALL PAGE ====== -->
+<div class="voice-full" id="voicePanel">
+  <div class="voice-transcript" id="voiceTranscript">"帮我构思一个都市修仙的开头..."</div>
+  <div class="voice-avatar">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM12 14C10.895 14 10 13.105 10 12C10 10.895 10.895 10 12 10C13.105 10 14 10.895 14 12C14 13.105 13.105 14 12 14Z"/></svg>
+  </div>
+  <div class="voice-name">AI 写作助手</div>
+  <div class="voice-status">正在聆听...</div>
+  <div class="voice-controls">
+    <button class="voice-btn mute" id="voiceMuteBtn" onclick="toggleVoiceMute()">🔇</button>
+    <button class="voice-btn end" onclick="closeVoiceCall()">📞</button>
+    <button class="voice-btn speaker" id="voiceSpeakerBtn" onclick="toggleVoiceSpeaker()">🔊</button>
+  </div>
+</div>
+
+<!-- ====== AGENT MARKETPLACE PAGE ====== -->
+<div class="slide-panel" id="agentMarketPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('agentMarketPanel')">←</button><h2>Agent 市场</h2></div>
+  <div style="padding:12px 16px;font-size:12px;color:#888">写作辅助</div>
+  <div class="agent-market-card"><div class="amc-icon">🔥</div><div class="amc-info"><div class="amc-name">爽点检查器</div><div class="amc-desc">分析章节爽点分布，确保读者高潮不断</div></div><button class="amc-toggle on" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">已安装</button></div>
+  <div class="agent-market-card"><div class="amc-icon">💧</div><div class="amc-info"><div class="amc-name">水文检测器</div><div class="amc-desc">检测注水段落，优化文章节奏</div></div><button class="amc-toggle on" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">已安装</button></div>
+  <div class="agent-market-card"><div class="amc-icon">🎯</div><div class="amc-info"><div class="amc-name">大纲生成器</div><div class="amc-desc">根据设定自动生成多卷大纲</div></div><button class="amc-toggle on" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">已安装</button></div>
+  <div class="agent-market-card"><div class="amc-icon">💬</div><div class="amc-info"><div class="amc-name">标题生成器</div><div class="amc-desc">一键生成多个章节标题方案</div></div><button class="amc-toggle" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">安装</button></div>
+  <div style="padding:12px 16px;font-size:12px;color:#888">数据分析</div>
+  <div class="agent-market-card"><div class="amc-icon">💡</div><div class="amc-info"><div class="amc-name">灵感激发器</div><div class="amc-desc">根据关键词和风格生成创作灵感</div></div><button class="amc-toggle" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">安装</button></div>
+  <div style="padding:12px 16px;font-size:12px;color:#888">内容优化</div>
+  <div class="agent-market-card"><div class="amc-icon">🚀</div><div class="amc-info"><div class="amc-name">情节推进器</div><div class="amc-desc">分析当前情节走向，给出推进方案</div></div><button class="amc-toggle" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'已安装':'安装'">安装</button></div>
+  <div style="height:40px"></div>
+</div>
+
+<!-- ====== WATER REPORT PAGE ====== -->
+<div class="slide-panel" id="waterPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('waterPanel')">←</button><h2>水文检测报告</h2></div>
+  <div style="text-align:center;padding:16px">
+    <div class="gauge"><div class="gauge-bg"></div><div class="gauge-mask"></div><div class="gauge-needle"></div><div class="gauge-value" style="color:#ffc107">18%</div></div>
+    <div style="font-size:14px;margin-top:8px">整体水文指数</div>
+    <div style="font-size:12px;color:#888">评价：较为精炼</div>
+  </div>
+  <div style="padding:0 16px 8px;font-size:13px;font-weight:600">标记段落</div>
+  <div class="water-item"><div style="font-size:12px;color:#ffc107;margin-bottom:4px">⚠ 中度水文 · 18%注水</div>"宴会厅里顿时安静下来，所有人的目光都聚焦在林逸身上。有同情，有嘲讽，更多的是幸灾乐祸。"</div>
+  <div class="water-item low"><div style="font-size:12px;color:#10a37f;margin-bottom:4px">✅ 轻微 · 5%注水</div>"林逸没有说话，只是静静地看了赵雪儿一眼，然后转身走向门口。"</div>
+  <div class="water-item high"><div style="font-size:12px;color:#dc3545;margin-bottom:4px">❌ 严重 · 32%注水</div>"赵雪儿身着华丽的红色礼服，妆容精致，身边挽着一个西装革履的男人。她看着林逸，眼中没有惊喜，只有厌恶。"</div>
+  <div style="padding:16px;font-size:13px;color:#888;line-height:1.6">
+    <b style="color:#fff">优化建议：</b><br>
+    · 第3段外貌描写可精简，保留关键特征即可<br>
+    · 第4段心理描写可融入动作，而非直接叙述
+  </div>
+</div>
+
+<!-- ====== SHUANGDIAN REPORT PAGE ====== -->
+<div class="slide-panel" id="shuangdianPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('shuangdianPanel')">←</button><h2>爽点分析报告</h2></div>
+  <div style="text-align:center;padding:20px">
+    <div style="font-size:48px;font-weight:bold;color:#10a37f">7.2</div>
+    <div style="font-size:14px;color:#888">/ 10 综合爽感评分</div>
+  </div>
+  <div style="padding:0 16px 8px;font-size:13px;font-weight:600">爽点时间线</div>
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-ch">🔥 第1章 开场冲突</div><div class="tl-desc">退婚场景制造初始愤怒，读者代入感强</div></div>
+    <div class="tl-item"><div class="tl-ch">💡 第1章 神秘老者</div><div class="tl-desc">伏笔开启，读者期待后续发展</div></div>
+    <div class="tl-item warn"><div class="tl-ch">⚠️ 第2-3章 过渡期</div><div class="tl-desc">节奏略慢，缺少高潮事件</div></div>
+    <div class="tl-item"><div class="tl-ch">🔥 第4章 首次觉醒</div><div class="tl-desc">能力觉醒，读者满足感</div></div>
+    <div class="tl-item bad"><div class="tl-ch">❌ 第5章 结尾</div><div class="tl-desc">收尾仓促，缺少悬念钩子</div></div>
+  </div>
+  <div style="padding:16px 16px 8px;font-size:13px;font-weight:600">分析详情</div>
+  <div style="padding:8px 16px;font-size:13px;line-height:1.8;color:#ccc">
+    ✅ <span style="color:#10a37f">开头有力</span>：退婚场景直击读者爽点，愤怒情绪建立成功<br>
+    ⚠️ <span style="color:#ffc107">中间略慢</span>：第2-3章过渡内容偏多，建议增加小高潮<br>
+    ❌ <span style="color:#dc3545">结尾偏弱</span>：缺少钩子，建议在末尾留下悬念
+  </div>
+</div>
+
+<!-- ====== TITLE GENERATOR PAGE ====== -->
+<div class="slide-panel" id="titleGenPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('titleGenPanel')">←</button><h2>标题生成器</h2></div>
+  <div style="padding:12px 16px">
+    <div style="font-size:12px;color:#888;margin-bottom:8px">章节内容预览：</div>
+    <div class="polish-text" style="font-size:13px">林逸站在宴会厅的门口，看着里面觥筹交错的景象，嘴角泛起一丝苦涩的笑意。三年了，他终于从部队回来了。他的未婚妻当众退婚，却在巷子里救下一位神秘老者...</div>
+  </div>
+  <div style="text-align:center;padding:16px"><button style="padding:12px 32px;border-radius:24px;background:#10a37f;color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer" onclick="generateTitles()">✨ 生成标题</button></div>
+  <div id="titleResults">
+    <div class="title-card"><div><div class="tc-text">退婚夜，我觉醒了远古血脉</div><div class="tc-tags"><span class="tc-tag">悬念</span><span class="tc-tag">觉醒</span></div></div><button class="tc-use">使用</button></div>
+    <div class="title-card"><div><div class="tc-text">被退婚后，神秘老者找上门</div><div class="tc-tags"><span class="tc-tag">反转</span><span class="tc-tag">奇遇</span></div></div><button class="tc-use">使用</button></div>
+    <div class="title-card"><div><div class="tc-text">三年归来，我已不是从前的我</div><div class="tc-tags"><span class="tc-tag">装逼</span><span class="tc-tag">逆袭</span></div></div><button class="tc-use">使用</button></div>
+    <div class="title-card"><div><div class="tc-text">她退婚的那一刻，整个世界都变了</div><div class="tc-tags"><span class="tc-tag">情绪</span><span class="tc-tag">转折</span></div></div><button class="tc-use">使用</button></div>
+    <div class="title-card"><div><div class="tc-text">退伍兵的修仙路，从被退婚开始</div><div class="tc-tags"><span class="tc-tag">设定</span><span class="tc-tag">开局</span></div></div><button class="tc-use">使用</button></div>
+  </div>
+</div>
+
+<!-- ====== STYLE SELECTOR PAGE (番茄风格) ====== -->
+<div class="slide-panel" id="styleSelectorPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('styleSelectorPanel')">←</button><h2>番茄风格</h2></div>
+  <div class="style-grid">
+    <div class="style-card selected" onclick="selectStyle(this)"><div class="sc-icon">🏙</div><div class="sc-name">都市爽文</div><div class="sc-desc">快节奏升级流，打脸装逼</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">💕</div><div class="sc-name">言情甜宠</div><div class="sc-desc">轻松甜蜜，甜蜜互动</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">🔍</div><div class="sc-name">悬疑推理</div><div class="sc-desc">烧脑反转，步步惊心</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">⚔</div><div class="sc-name">玄幻修仙</div><div class="sc-desc">功法修炼，境界突破</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">🌌</div><div class="sc-name">科幻末日</div><div class="sc-desc">末世生存，科技逆袭</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">📜</div><div class="sc-name">历史架空</div><div class="sc-desc">古代争霸，权谋天下</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">🎭</div><div class="sc-name">娱乐圈</div><div class="sc-desc">明星养成，流量为王</div></div>
+    <div class="style-card" onclick="selectStyle(this)"><div class="sc-icon">🏫</div><div class="sc-name">校园青春</div><div class="sc-desc">青春校园，成长蜕变</div></div>
+  </div>
+  <div style="padding:16px"><button style="width:100%;padding:14px;border-radius:12px;background:#10a37f;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer" onclick="alert('已应用所选风格')">应用风格</button></div>
+</div>
+
+<!-- ====== USER MEMORY PAGE ====== -->
+<div class="slide-panel" id="userMemoryPanel">
+  <div class="sp-header"><button class="back-btn" onclick="closePanel('userMemoryPanel')">←</button><h2>用户记忆</h2></div>
+  <div style="padding:12px 16px;font-size:12px;color:#888">AI 会记住这些偏好，在每次对话中自动应用</div>
+  <div class="memory-item"><div class="mi-content"><div class="mi-cat">写作风格</div><div class="mi-key">文风偏好</div><div class="mi-val">偏好短句，节奏紧凑，对话驱动型叙事</div></div><button class="mi-del">✕</button></div>
+  <div class="memory-item"><div class="mi-content"><div class="mi-cat">角色偏好</div><div class="mi-key">主角类型</div><div class="mi-val">喜欢退伍军人/特种兵类型的主角，低调但实力强大</div></div><button class="mi-del">✕</button></div>
+  <div class="memory-item"><div class="mi-content"><div class="mi-cat">剧情方向</div><div class="mi-key">剧情节奏</div><div class="mi-val">每3章一个小高潮，每卷一个大高潮，不要拖沓</div></div><button class="mi-del">✕</button></div>
+  <div class="memory-item"><div class="mi-content"><div class="mi-cat">写作风格</div><div class="mi-key">禁忌内容</div><div class="mi-val">不写后宫，不写虐主，主角必须始终占上风</div></div><button class="mi-del">✕</button></div>
+  <div style="padding:16px"><button style="width:100%;padding:14px;border-radius:12px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer" onclick="alert('添加新记忆')">+ 添加记忆</button></div>
+</div>
+
+<!-- ====== MATERIAL EDITOR MODAL ====== -->
+<div class="sheet-overlay" id="meOverlay" onclick="closeMatEditor()"></div>
+<div class="sheet" id="meSheet" style="max-height:75vh">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-size:15px;font-weight:600" id="meTitle">编辑角色</span>
+    <button style="background:#10a37f;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer" onclick="closeMatEditor()">保存</button>
+  </div>
+  <div class="me-tabs">
+    <div class="me-tab active">基本信息</div>
+    <div class="me-tab" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">详细内容</div>
+  </div>
+  <div class="me-field"><label>姓名</label><input type="text" value="林逸" id="meName"></div>
+  <div class="me-field"><label>角色</label><select><option>主角</option><option>女主</option><option>反派</option><option>配角</option><option>龙套</option></select></div>
+  <div class="me-field"><label>性格</label><input type="text" value="坚毅、隐忍、重情重义"></div>
+  <div class="me-field"><label>外貌</label><input type="text" value="身高一米八五，身材健硕，面容刚毅"></div>
+  <div class="me-field"><label>背景</label><textarea>退伍特种兵，曾服役于某特种部队。退伍后回到家乡，遭遇未婚妻退婚。实际上拥有远古血脉，是修炼界的天才。</textarea></div>
+</div>
+
+<!-- ====== MATERIAL PICKER ====== -->
+<div class="sheet-overlay" id="mpOverlay" onclick="closeMatPicker()"></div>
+<div class="sheet" id="mpSheet" style="max-height:70vh">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:15px;font-weight:600">选择资料发给AI</span>
+    <button style="background:#10a37f;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer" onclick="confirmMatPicker()">确定</button>
+  </div>
+  <div class="mp-tabs" id="mpTabs">
+    <div class="mp-tab active" onclick="switchMPTab(0,this)">角色</div>
+    <div class="mp-tab" onclick="switchMPTab(1,this)">设定</div>
+    <div class="mp-tab" onclick="switchMPTab(2,this)">章节</div>
+    <div class="mp-tab" onclick="switchMPTab(3,this)">伏笔</div>
+  </div>
+  <div id="mpList" style="max-height:40vh;overflow-y:auto"></div>
+</div>
+
+</div><!-- end phone -->
+
+<script>
+/* ====== Panel close helper ====== */
+function closePanel(id){document.getElementById(id).classList.remove('open')}
+
+/* ====== Sidebar ====== */
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open')}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open')}
+
+/* ====== Model Dropdown ====== */
+function toggleModel(){document.getElementById('modelDD').classList.toggle('open')}
+function closeModel(){document.getElementById('modelDD').classList.remove('open')}
+function selectModel(el,name){document.querySelectorAll('.model-item').forEach(function(e){e.classList.remove('active')});el.classList.add('active');document.getElementById('modelPill').textContent=name;closeModel()}
+document.addEventListener('click',function(e){if(!e.target.closest('.topbar')&&!e.target.closest('.model-dropdown'))closeModel()});
+
+/* ====== Tree toggle ====== */
+function toggleTree(el){el.classList.toggle('open');var c=el.nextElementSibling;if(c&&c.classList.contains('tree-children'))c.classList.toggle('open');var a=el.querySelector('.tree-arrow');if(a)a.classList.toggle('open')}
+
+/* ====== Chat Input ====== */
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+function toggleSend(){var v=document.getElementById('chatInput').value.trim();document.getElementById('sendBtn').style.display=v?'flex':'none';document.getElementById('micBtn').style.display=v?'none':'flex'}
+function handleSend(){var inp=document.getElementById('chatInput');var t=inp.value.trim();if(!t)return;addMsg(t,'user');inp.value='';autoGrow(inp);toggleSend();closeSheet();
+  setTimeout(function(){addTyping()},400);
+  setTimeout(function(){rmTyping();addMsg('正在为你构思...这是一个初步方案，需要调整吗？','ai')},2000)}
+function handleMic(){alert('调用安卓系统麦克风录音...')}
+function newChat(){document.getElementById('chatInput').value='';toggleSend();closeSidebar();closeSheet()}
+
+function addMsg(text,sender){
+  var d=document.createElement('div');d.className='msg '+sender;
+  if(sender==='user'){
+    d.innerHTML='<div class="bubble">'+escapeHtml(text)+'</div>';
+  }else{
+    d.innerHTML='<div class="avatar ai-av"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM12 14C10.895 14 10 13.105 10 12C10 10.895 10.895 10 12 10C13.105 10 14 10.895 14 12C14 13.105 13.105 14 12 14Z"/></svg></div><div class="bubble">'+text+'</div>';
+  }
+  var c=document.getElementById('chatArea');c.insertBefore(d,document.getElementById('chatEnd'));c.scrollTop=c.scrollHeight;
+}
+function addTyping(){var d=document.createElement('div');d.className='msg ai';d.id='typingMsg';d.innerHTML='<div class="avatar ai-av"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM12 14C10.895 14 10 13.105 10 12C10 10.895 10.895 10 12 10C13.105 10 14 10.895 14 12C14 13.105 13.105 14 12 14Z"/></svg></div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';var c=document.getElementById('chatArea');c.insertBefore(d,document.getElementById('chatEnd'));c.scrollTop=c.scrollHeight}
+function rmTyping(){var e=document.getElementById('typingMsg');if(e)e.remove()}
+function escapeHtml(s){return s.replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c})}
+
+/* ====== Bottom Sheet ====== */
+function openSheet(){document.getElementById('sheet').classList.add('open');document.getElementById('sheetOverlay').classList.add('open')}
+function closeSheet(){document.getElementById('sheet').classList.remove('open');document.getElementById('sheetOverlay').classList.remove('open')}
+
+/* ====== Chapter Detail ====== */
+function openChapter(name,status,words){closeSidebar();document.getElementById('rpTitle').textContent=name;var s=document.getElementById('rpStatus');s.textContent=status;s.className='badge '+(status==='草稿'?'draft':status==='已完成'?'done':'empty');document.getElementById('rpWords').textContent=words+' 字';document.getElementById('rightPanel').classList.add('open');document.getElementById('rpOverlay').classList.add('open')}
+function closeChapter(){document.getElementById('rightPanel').classList.remove('open');document.getElementById('rpOverlay').classList.remove('open')}
+
+/* ====== Export ====== */
+function openExport(){document.getElementById('exportPanel').classList.add('open')}
+/* ====== Settings ====== */
+function openSettings(){document.getElementById('settingsPanel').classList.add('open')}
+
+/* ====== Editor ====== */
+function openEditor(){document.getElementById('editorPanel').classList.add('open')}
+function updateEditorWordCount(){var text=document.getElementById('editorBody').innerText.replace(/\s/g,'');document.getElementById('editorWordCount').textContent=text.length.toLocaleString()+' 字'}
+
+/* ====== Outline ====== */
+function openOutline(){document.getElementById('outlinePanel').classList.add('open')}
+
+/* ====== Stats ====== */
+function openStats(){document.getElementById('statsPanel').classList.add('open')}
+
+/* ====== Proofread ====== */
+function openProofread(){document.getElementById('proofreadPanel').classList.add('open')}
+
+/* ====== Search ====== */
+function openSearch(){document.getElementById('searchPanel').classList.add('open')}
+
+/* ====== Polish ====== */
+function openPolish(){document.getElementById('polishPanel').classList.add('open')}
+function showPolishResult(){document.getElementById('polishResult').style.display='block'}
+
+/* ====== Full Review ====== */
+function openReview(){document.getElementById('reviewPanel').classList.add('open')}
+
+/* ====== Voice Call ====== */
+function openVoiceCall(){document.getElementById('voicePanel').classList.add('open')}
+function closeVoiceCall(){document.getElementById('voicePanel').classList.remove('open')}
+function toggleVoiceMute(){var b=document.getElementById('voiceMuteBtn');b.textContent=b.textContent==='🔇'?'🔊':'🔇'}
+function toggleVoiceSpeaker(){var b=document.getElementById('voiceSpeakerBtn');b.textContent=b.textContent==='🔊'?'🔈':'🔊'}
+
+/* ====== Agent Market ====== */
+function openAgentMarket(){document.getElementById('agentMarketPanel').classList.add('open')}
+
+/* ====== Water Report ====== */
+function openWaterReport(){document.getElementById('waterPanel').classList.add('open')}
+
+/* ====== Shuangdian Report ====== */
+function openShuangdian(){document.getElementById('shuangdianPanel').classList.add('open')}
+
+/* ====== Title Generator ====== */
+function openTitleGen(){document.getElementById('titleGenPanel').classList.add('open')}
+function generateTitles(){alert('AI 正在生成标题...')}
+
+/* ====== Style Selector ====== */
+function openStyleSelector(){document.getElementById('styleSelectorPanel').classList.add('open')}
+function selectStyle(el){document.querySelectorAll('.style-card').forEach(function(e){e.classList.remove('selected')});el.classList.add('selected')}
+
+/* ====== User Memory ====== */
+function openUserMemory(){document.getElementById('userMemoryPanel').classList.add('open')}
+
+/* ====== Material Editor ====== */
+function openMatEditor(){document.getElementById('meSheet').classList.add('open');document.getElementById('meOverlay').classList.add('open')}
+function closeMatEditor(){document.getElementById('meSheet').classList.remove('open');document.getElementById('meOverlay').classList.remove('open')}
+function openMaterialEditor(type,name){closeSidebar();document.getElementById('meTitle').textContent='编辑'+(type||'角色');document.getElementById('meName').value=name||'';openMatEditor()}
+
+/* ====== Relationship Graph ====== */
+function openRelGraph(){closeSidebar();document.getElementById('relPanel').classList.add('open');setTimeout(drawGraph,100)}
+
+var graphChars=[
+  {id:'c1',name:'林逸',role:'主角',color:'#4a90d9',x:150,y:120},
+  {id:'c2',name:'苏雨涵',role:'女主',color:'#e91e8c',x:280,y:80},
+  {id:'c3',name:'赵天明',role:'反派',color:'#e74c3c',x:220,y:250},
+  {id:'c4',name:'老者',role:'师父',color:'#27ae60',x:80,y:220},
+  {id:'c5',name:'萧炎',role:'配角',color:'#95a5a6',x:350,y:180}
+];
+var graphRels=[
+  {from:'c1',to:'c2',type:'恋人'},{from:'c1',to:'c3',type:'敌人'},
+  {from:'c4',to:'c1',type:'师徒'},{from:'c1',to:'c5',type:'同门'}
+];
+var selNode=null,dragNode=null,dragOff={x:0,y:0};
+
+function drawGraph(){
+  var cv=document.getElementById('graphCanvas');var ct=cv.getContext('2d');
+  cv.width=cv.parentElement.clientWidth;cv.height=cv.parentElement.clientHeight;
+  ct.clearRect(0,0,cv.width,cv.height);
+  graphRels.forEach(function(r){
+    var f=graphChars.find(function(c){return c.id===r.from});var t=graphChars.find(function(c){return c.id===r.to});
+    if(!f||!t)return;
+    ct.beginPath();ct.moveTo(f.x,f.y);ct.lineTo(t.x,t.y);
+    ct.setLineDash(r.type==='敌人'?[6,4]:r.type==='恋人'?[2,4]:[]);
+    ct.strokeStyle='#555';ct.lineWidth=2;ct.stroke();ct.setLineDash([]);
+    var dx=t.x-f.x,dy=t.y-f.y,d=Math.sqrt(dx*dx+dy*dy);var ax=t.x-dx/d*30,ay=t.y-dy/d*30;
+    ct.beginPath();ct.moveTo(ax+dy/d*5,ay-dx/d*5);ct.lineTo(ax-dy/d*5,ay+dx/d*5);ct.lineTo(t.x-dx/d*20,t.y-dy/d*20);ct.closePath();ct.fillStyle='#666';ct.fill();
+    var mx=(f.x+t.x)/2,my=(f.y+t.y)/2;ct.font='11px system-ui';var tw=ct.measureText(r.type).width;
+    ct.fillStyle='#1a1a1a';ct.fillRect(mx-tw/2-6,my-9,tw+12,18);ct.strokeStyle='#444';ct.strokeRect(mx-tw/2-6,my-9,tw+12,18);
+    ct.fillStyle='#ddd';ct.textAlign='center';ct.textBaseline='middle';ct.fillText(r.type,mx,my);
+  });
+  graphChars.forEach(function(c){
+    ct.beginPath();ct.arc(c.x,c.y,28,0,Math.PI*2);ct.fillStyle=c.color;ct.fill();
+    if(selNode===c.id){ct.strokeStyle='#fff';ct.lineWidth=3;ct.stroke()}
+    ct.fillStyle='#fff';ct.font='bold 16px system-ui';ct.textAlign='center';ct.textBaseline='middle';ct.fillText(c.name.charAt(0),c.x,c.y);
+    ct.fillStyle='#ccc';ct.font='12px system-ui';ct.fillText(c.name,c.x,c.y+40);
+  });
+}
+function graphMouseDown(e){
+  var r=e.target.getBoundingClientRect();var mx=e.clientX-r.left,my=e.clientY-r.top;
+  for(var i=graphChars.length-1;i>=0;i--){var c=graphChars[i];
+    if(Math.hypot(c.x-mx,c.y-my)<30){dragNode=c;dragOff={x:mx-c.x,y:my-c.y};selNode=selNode===c.id?null:c.id;drawGraph();return}
+  }selNode=null;drawGraph();
+}
+function graphMouseMove(e){if(!dragNode)return;var r=e.target.getBoundingClientRect();dragNode.x=e.clientX-r.left-dragOff.x;dragNode.y=e.clientY-r.top-dragOff.y;drawGraph()}
+function graphMouseUp(){dragNode=null}
+setTimeout(function(){var cv=document.getElementById('graphCanvas');if(cv){cv.addEventListener('mousedown',graphMouseDown);cv.addEventListener('mousemove',graphMouseMove);cv.addEventListener('mouseup',graphMouseUp);cv.addEventListener('touchstart',function(e){e.preventDefault();var t=e.touches[0];graphMouseDown({clientX:t.clientX,clientY:t.clientY,target:cv})});cv.addEventListener('touchmove',function(e){e.preventDefault();var t=e.touches[0];graphMouseMove({clientX:t.clientX,clientY:t.clientY,target:cv})});cv.addEventListener('touchend',graphMouseUp)}},200);
+
+/* ====== Material Picker ====== */
+var mpData=[
+  [{n:'林逸',d:'主角，退伍特种兵，性格坚毅'},{n:'苏雨涵',d:'女主，集团千金，外柔内刚'},{n:'赵天明',d:'反派，商业巨头，野心勃勃'}],
+  [{n:'灵气复苏',d:'灵气复苏后世界进入修仙时代'},{n:'九大境界',d:'炼气/筑基/金丹/元婴/化神/渡劫/大乘/仙帝/道祖'}],
+  [{n:'第1章 退婚',d:'林逸退伍归来遭遇退婚'},{n:'第2章 偶遇',d:'救下老者获得修炼功法'},{n:'第3章 觉醒',d:'远古血脉首次觉醒'}],
+  [{n:'主角身世之谜',d:'林逸的真实身份与远古血脉有关'}]
+];
+var mpTab=0,mpSel=new Set();
+function openMatPicker(){closeSheet();mpSel.clear();mpTab=0;renderMP();document.getElementById('mpSheet').classList.add('open');document.getElementById('mpOverlay').classList.add('open')}
+function closeMatPicker(){document.getElementById('mpSheet').classList.remove('open');document.getElementById('mpOverlay').classList.remove('open')}
+function switchMPTab(t,el){mpTab=t;document.querySelectorAll('.mp-tab').forEach(function(e){e.classList.remove('active')});el.classList.add('active');renderMP()}
+function renderMP(){var list=document.getElementById('mpList');list.innerHTML='';mpData[mpTab].forEach(function(item,i){var id=mpTab+'_'+i;var d=document.createElement('div');d.className='mp-item';d.innerHTML='<input type="checkbox" '+(mpSel.has(id)?'checked':'')+' onchange="toggleMP(\''+id+'\')"><div><div style="font-weight:500">'+item.n+'</div><div class="mp-preview">'+item.d+'</div></div>';list.appendChild(d)})}
+function toggleMP(id){if(mpSel.has(id))mpSel.delete(id);else mpSel.add(id);renderMP()}
+function confirmMatPicker(){if(mpSel.size===0){closeMatPicker();return}var ctx='[选择的资料上下文]\n';mpSel.forEach(function(id){var p=id.split('_');var item=mpData[parseInt(p[0])][parseInt(p[1])];ctx+='\n## '+item.n+'\n'+item.d+'\n'});ctx+='\n---请基于以上资料回答---\n';var inp=document.getElementById('chatInput');inp.value=ctx+'\n'+inp.value;autoGrow(inp);toggleSend();closeMatPicker()}
+
+/* ====== Word Goal ====== */
+var goal=3000;function adjustGoal(d){goal=Math.max(500,Math.min(20000,goal+d));document.getElementById('goalNum').textContent=goal}
+
+/* ====== Skin selector ====== */
+document.querySelectorAll('.skin-item').forEach(function(el){el.addEventListener('click',function(){document.querySelectorAll('.skin-item').forEach(function(e){e.classList.remove('active')});el.classList.add('active')})});
+
+/* ====== Tab switcher ====== */
+document.querySelectorAll('.me-tab').forEach(function(el){el.addEventListener('click',function(){el.parentElement.querySelectorAll('.me-tab').forEach(function(e){e.classList.remove('active')});el.classList.add('active')})});
+
+/* ====== Escape key to close panels ====== */
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){
+  var panels=document.querySelectorAll('.slide-panel.open');
+  if(panels.length>0){panels[panels.length-1].classList.remove('open');return}
+  var sheets=document.querySelectorAll('.sheet.open');
+  if(sheets.length>0){sheets.forEach(function(s){s.classList.remove('open')});document.querySelectorAll('.sheet-overlay.open').forEach(function(o){o.classList.remove('open')});return}
+  if(document.getElementById('sidebar').classList.contains('open')){closeSidebar();return}
+  if(document.getElementById('voicePanel').classList.contains('open')){closeVoiceCall();return}
+}});
+</script>
+</body>
+</html>
