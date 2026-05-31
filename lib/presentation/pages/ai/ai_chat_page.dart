@@ -10,6 +10,7 @@ import 'package:novel_ide/data/models/proactive_question_model.dart';
 import 'package:novel_ide/data/models/writing_skill_model.dart';
 import 'package:novel_ide/data/models/tomato_preset_model.dart';
 import 'package:novel_ide/presentation/state/app_providers.dart';
+import 'package:novel_ide/core/theme/skin_provider.dart';
 import 'package:novel_ide/data/services/ai_service.dart';
 import 'package:novel_ide/data/services/novel_memory.dart';
 import 'package:novel_ide/data/services/user_memory.dart';
@@ -393,13 +394,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
   }
 
   // GPT风格颜色
-  static const bgColor = Color(0xFF000000);
-  static const cardBg = Color(0xFF1A1A1A);
-  static const cardBg2 = Color(0xFF2A2A2A);
-  static const primaryColor = Color(0xFF10A37F);
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFF888888);
-  static const textTertiary = Color(0xFF666666);
+// 从皮肤主题读取颜色
+final skinTheme = ref.watch(skinThemeProvider);
+final bgColor = skinTheme.background;
+final cardBg = skinTheme.surface;
+final cardBg2 = skinTheme.cardBg;
+final primaryColor = skinTheme.primary;
+final textPrimary = skinTheme.textPrimary;
+final textSecondary = skinTheme.textSecondary;
+final textTertiary = skinTheme.textTertiary;
 
   @override
   Widget build(BuildContext context) {
@@ -661,8 +664,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
                       constraints: const BoxConstraints(),
                     ),
                   )
-                : _inputCtrl.text.isNotEmpty
-                    ? Container(
+                : Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
@@ -671,21 +673,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                          onPressed: _sendMessage,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      )
-                    : Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: cardBg2,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: IconButton(
-                          icon: Icon(Icons.mic, color: textPrimary, size: 20),
-                          onPressed: _handleMic,
+                          onPressed: _isLoading ? null : _sendMessage,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
