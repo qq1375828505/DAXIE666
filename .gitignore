@@ -39,3 +39,7 @@ Thumbs.db
 *.p12
 *.pem
 *.local
+
+# Python scripts
+*.py
+!.env.example
