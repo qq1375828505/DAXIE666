@@ -8,6 +8,14 @@ import 'package:novel_ide/presentation/pages/works/export_page.dart';
 import 'package:novel_ide/presentation/pages/materials/materials_tree_page.dart';
 import 'package:novel_ide/presentation/pages/materials/relationship_graph_page.dart';
 import 'package:novel_ide/presentation/pages/stats/stats_page.dart';
+import 'package:novel_ide/presentation/pages/tomato/shuangdian_report_page.dart';
+import 'package:novel_ide/presentation/pages/tomato/water_report_page.dart';
+import 'package:novel_ide/presentation/pages/tomato/title_generator_result_page.dart';
+import 'package:novel_ide/presentation/pages/ai/full_text_review_page.dart';
+import 'package:novel_ide/presentation/pages/tomato/agent_marketplace_page.dart';
+import 'package:novel_ide/presentation/pages/ai/polish_engine_page.dart';
+import 'package:novel_ide/presentation/pages/tomato/style_selector_bar.dart';
+import 'package:novel_ide/presentation/pages/profile/skill_manage_page.dart';
 import 'package:novel_ide/data/models/novel_model.dart';
 import 'package:novel_ide/data/models/chapter_model.dart';
 import 'package:novel_ide/data/models/volume_model.dart';
@@ -22,7 +30,6 @@ import 'package:novel_ide/presentation/pages/writing/global_search_page.dart';
 import 'package:novel_ide/presentation/pages/outline/outline_page.dart';
 import 'package:novel_ide/presentation/widgets/top_notification.dart';
 import 'package:novel_ide/core/router.dart';
-import 'package:novel_ide/core/theme/skin_provider.dart';
 
 /// GPT风格单页面聊天应用
 class MainShell extends ConsumerStatefulWidget {
@@ -181,17 +188,16 @@ class _MainShellState extends ConsumerState<MainShell> {
       }
     }
     
-    // 主题颜色 - 从皮肤主题读取
-    final skinTheme = ref.watch(skinThemeProvider);
-    final bgColor = skinTheme.background;
-    final sidebarBg = skinTheme.navBg;
-    final cardBg = skinTheme.surface;
-    final cardBg2 = skinTheme.cardBg;
-    final primaryColor = skinTheme.primary;
-    final textPrimary = skinTheme.textPrimary;
-    final textSecondary = skinTheme.textSecondary;
-    final textTertiary = skinTheme.textSecondary.withOpacity(0.6);
-    final dividerColor = skinTheme.textSecondary.withOpacity(0.2);
+    // GPT风格颜色
+    const bgColor = Color(0xFF000000);
+    const sidebarBg = Color(0xFF171717);
+    const cardBg = Color(0xFF1A1A1A);
+    const cardBg2 = Color(0xFF2A2A2A);
+    const primaryColor = Color(0xFF10A37F);
+    const textPrimary = Color(0xFFFFFFFF);
+    const textSecondary = Color(0xFF888888);
+    const textTertiary = Color(0xFF666666);
+    const dividerColor = Color(0xFF2A2A2A);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -339,25 +345,19 @@ class _MainShellState extends ConsumerState<MainShell> {
               icon: Icon(Icons.search, color: textPrimary, size: 22),
               onPressed: () {
                 final novel = ref.read(selectedNovelProvider);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GlobalSearchPage(
-                      novelId: novel?.id ?? '',
-                      novelTitle: novel?.title ?? '全部作品',
+                if (novel != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GlobalSearchPage(
+                        novelId: novel.id,
+                        novelTitle: novel.title,
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-            // AI工具按钮 - 跳转到AI聊天页面
-            IconButton(
-              icon: Icon(Icons.psychology, color: primaryColor, size: 22),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AiChatPage()),
-                );
+                  );
+                } else {
+                  TopNotification.show(context, '请先选择一部作品再使用全局搜索');
+                }
               },
             ),
             // 设置按钮
@@ -368,6 +368,13 @@ class _MainShellState extends ConsumerState<MainShell> {
                   context,
                   MaterialPageRoute(builder: (_) => const ProfilePage()),
                 );
+              },
+            ),
+            // AI工具按钮
+            IconButton(
+              icon: Icon(Icons.psychology, color: primaryColor, size: 22),
+              onPressed: () {
+                _showAiToolsMenu();
               },
             ),
           ],
@@ -470,6 +477,20 @@ class _MainShellState extends ConsumerState<MainShell> {
                     cardBg2,
                     primaryColor,
                   ),
+                  
+                  const SizedBox(height: 8),
+                  _buildSectionLabel('AI工具', textSecondary),
+                  
+                  // AI工具分类
+                  _buildAiToolNode('写作统计', Icons.bar_chart, textPrimary, textTertiary, cardBg2, materialType: 'stats'),
+                  _buildAiToolNode('爽点报告', Icons.analytics, textPrimary, textTertiary, cardBg2, materialType: 'shuangdian'),
+                  _buildAiToolNode('水文检测', Icons.water_drop, textPrimary, textTertiary, cardBg2, materialType: 'water'),
+                  _buildAiToolNode('标题生成', Icons.title, textPrimary, textTertiary, cardBg2, materialType: 'title'),
+                  _buildAiToolNode('全文审查', Icons.fact_check, textPrimary, textTertiary, cardBg2, materialType: 'review'),
+                  _buildAiToolNode('润色引擎', Icons.auto_fix_high, textPrimary, textTertiary, cardBg2, materialType: 'polish'),
+                  _buildAiToolNode('风格预设', Icons.palette, textPrimary, textTertiary, cardBg2, materialType: 'style_preset'),
+                  _buildAiToolNode('Agent市场', Icons.store, textPrimary, textTertiary, cardBg2, materialType: 'agent_market'),
+                  _buildAiToolNode('写作技能', Icons.build, textPrimary, textTertiary, cardBg2, materialType: 'skill_manage'),
                 ],
               ),
             ),
@@ -489,12 +510,16 @@ class _MainShellState extends ConsumerState<MainShell> {
                       setState(() => _sidebarOpen = false);
                       // 跳转到导出页面
                       final novel = ref.read(selectedNovelProvider);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ExportPage(novelId: novel?.id ?? '', novelTitle: novel?.title ?? '全部作品'),
-                        ),
-                      );
+                      if (novel != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ExportPage(novelId: novel.id, novelTitle: novel.title),
+                          ),
+                        );
+                      } else {
+                        TopNotification.show(context, '请先选择一部作品');
+                      }
                     },
                     icon: const Icon(Icons.upload, size: 16),
                     label: const Text('导出'),
@@ -1076,14 +1101,23 @@ class _MainShellState extends ConsumerState<MainShell> {
     Color cardBg2,
     Color primaryColor,
   ) {
-    // 如果没有选中作品，显示默认数量为0
+    // 没有选中作品时，显示默认数量并始终显示关系图按钮
     if (selectedNovel == null) {
       return [
-        _buildMaterialNode('角色', 0, Icons.person, textPrimary, textTertiary, cardBg2, materialType: 'character'),
+        // 角色节点 + 关系图按钮（始终显示）
+        _buildCharacterNodeWithGraphButton(
+          0,
+          textPrimary,
+          textTertiary,
+          cardBg2,
+          primaryColor,
+          selectedNovel,
+        ),
         _buildMaterialNode('设定', 0, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+        _buildMaterialNode('地点', 0, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
         _buildMaterialNode('势力', 0, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
         _buildMaterialNode('道具', 0, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+        _buildMaterialNode('伏笔', 0, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
         _buildMaterialNode('参考', 0, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
         _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
       ];
@@ -1093,6 +1127,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final novelId = selectedNovel.id;
     final characters = ref.watch(charactersProvider(novelId));
     final settings = ref.watch(settingCardsProvider(novelId));
+    final locations = ref.watch(locationsProvider(novelId));
     final hooks = ref.watch(plotHooksProvider(novelId));
     final factions = ref.watch(factionsProvider(novelId));
     final items = ref.watch(itemsProvider(novelId));
@@ -1109,9 +1144,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         selectedNovel,
       ),
       _buildMaterialNode('设定', settings.length, Icons.settings, textPrimary, textTertiary, cardBg2, materialType: 'setting'),
-      _buildMaterialNode('伏笔', hooks.length, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
+      _buildMaterialNode('地点', locations.length, Icons.location_on, textPrimary, textTertiary, cardBg2, materialType: 'location'),
       _buildMaterialNode('势力', factions.length, Icons.account_balance, textPrimary, textTertiary, cardBg2, materialType: 'faction'),
       _buildMaterialNode('道具', items.length, Icons.inventory_2, textPrimary, textTertiary, cardBg2, materialType: 'item'),
+      _buildMaterialNode('伏笔', hooks.length, Icons.lightbulb_outline, textPrimary, textTertiary, cardBg2, materialType: 'hook'),
       _buildMaterialNode('参考', references.length, Icons.book, textPrimary, textTertiary, cardBg2, materialType: 'reference'),
       _buildMaterialNode('记忆包', 0, Icons.psychology, textPrimary, textTertiary, cardBg2),
     ];
@@ -1167,8 +1203,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => RelationshipGraphPage(
-                    novelId: selectedNovel?.id ?? '',
-                    novelTitle: selectedNovel?.title ?? '全部作品',
+                    novelId: selectedNovel?.id ?? "",
+                    novelTitle: selectedNovel?.title ?? "",
                   ),
                 ),
               );
@@ -1194,6 +1230,498 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 构建AI工具节点
+  Widget _buildAiToolNode(
+    String label,
+    IconData icon,
+    Color textPrimary,
+    Color textTertiary,
+    Color cardBg2, {
+    String? materialType,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _sidebarOpen = false);
+        // 根据materialType跳转到对应页面
+        if (materialType == 'stats') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const StatsPage()),
+          );
+        } else if (materialType == 'shuangdian') {
+          // 爽点报告 - 需要选择作品
+          final novel = ref.read(selectedNovelProvider);
+          if (novel != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ShuangdianReportPage(),
+              ),
+            );
+          } else {
+            TopNotification.show(context, '请先选择一部作品');
+          }
+        } else if (materialType == 'water') {
+          // 水文检测 - 需要选择作品
+          final novel = ref.read(selectedNovelProvider);
+          if (novel != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const WaterReportPage(),
+              ),
+            );
+          } else {
+            TopNotification.show(context, '请先选择一部作品');
+          }
+        } else if (materialType == 'title') {
+          // 标题生成 - 需要选择作品
+          final novel = ref.read(selectedNovelProvider);
+          if (novel != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const TitleGeneratorResultPage(),
+              ),
+            );
+          } else {
+            TopNotification.show(context, '请先选择一部作品');
+          }
+        } else if (materialType == 'review') {
+          // 全文审查 - 需要选择作品
+          final novel = ref.read(selectedNovelProvider);
+          if (novel != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const FullTextReviewPage(),
+              ),
+            );
+          } else {
+            TopNotification.show(context, '请先选择一部作品');
+          }
+        } else if (materialType == 'polish') {
+          // 润色引擎 - 需要选择作品和章节
+          final novel = ref.read(selectedNovelProvider);
+          final chapter = ref.read(selectedChapterProvider);
+          if (novel != null && chapter != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PolishEnginePage(
+                  chapterContent: chapter.content,
+                  novelTitle: novel.title,
+                  onApply: (modifiedContent) {
+                    // 应用修改后的内容
+                  },
+                ),
+              ),
+            );
+          } else {
+            TopNotification.show(context, '请先选择作品和章节');
+          }
+        } else if (materialType == 'style_preset') {
+          // 风格预设 - 显示风格选择器
+          _showStylePresetPicker();
+        } else if (materialType == 'skill_manage') {
+          // 写作技能管理
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SkillManagePage(),
+            ),
+          );
+        } else if (materialType == 'agent_market') {
+          // Agent市场
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AgentMarketplacePage(),
+            ),
+          );
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        margin: const EdgeInsets.only(bottom: 2),
+        child: Row(
+          children: [
+            Icon(Icons.keyboard_arrow_right, color: textTertiary, size: 16),
+            const SizedBox(width: 4),
+            Icon(icon, color: textPrimary, size: 16),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(color: textPrimary, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 显示AI工具菜单
+  void _showAiToolsMenu() {
+    final theme = Theme.of(context);
+    final textPrimary = Colors.white;
+    final textSecondary = Colors.grey;
+    final primaryColor = const Color(0xFF10A37F);
+    final cardBg = const Color(0xFF1A1A1A);
+    final cardBg2 = const Color(0xFF2A2A2A);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: 400,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF444444),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'AI工具',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    _buildAiToolMenuItem(
+                      icon: Icons.bar_chart,
+                      title: '写作统计',
+                      subtitle: '字数趋势、打卡、进度',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const StatsPage()),
+                        );
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.analytics,
+                      title: '爽点报告',
+                      subtitle: '分析每章爽点分布',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final novel = ref.read(selectedNovelProvider);
+                        if (novel != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ShuangdianReportPage(),
+                            ),
+                          );
+                        } else {
+                          TopNotification.show(context, '请先选择一部作品');
+                        }
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.water_drop,
+                      title: '水文检测',
+                      subtitle: '检测凑字数、重复描写',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final novel = ref.read(selectedNovelProvider);
+                        if (novel != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const WaterReportPage(),
+                            ),
+                          );
+                        } else {
+                          TopNotification.show(context, '请先选择一部作品');
+                        }
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.title,
+                      title: '标题生成',
+                      subtitle: 'AI生成多个候选标题',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final novel = ref.read(selectedNovelProvider);
+                        if (novel != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TitleGeneratorResultPage(),
+                            ),
+                          );
+                        } else {
+                          TopNotification.show(context, '请先选择一部作品');
+                        }
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.fact_check,
+                      title: '全文审查',
+                      subtitle: '设定冲突、战力一致性、伏笔追踪',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final novel = ref.read(selectedNovelProvider);
+                        if (novel != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FullTextReviewPage(),
+                            ),
+                          );
+                        } else {
+                          TopNotification.show(context, '请先选择一部作品');
+                        }
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.auto_fix_high,
+                      title: '润色引擎',
+                      subtitle: '章节精修、8个维度',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final novel = ref.read(selectedNovelProvider);
+                        final chapter = ref.read(selectedChapterProvider);
+                        if (novel != null && chapter != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PolishEnginePage(
+                                chapterContent: chapter.content,
+                                novelTitle: novel.title,
+                                onApply: (modifiedContent) {
+                                  // 应用修改后的内容
+                                },
+                              ),
+                            ),
+                          );
+                        } else {
+                          TopNotification.show(context, '请先选择作品和章节');
+                        }
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.palette,
+                      title: '风格预设',
+                      subtitle: '25种写作风格预设',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showStylePresetPicker();
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.store,
+                      title: 'Agent市场',
+                      subtitle: '内置多种写作智能体',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AgentMarketplacePage(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildAiToolMenuItem(
+                      icon: Icons.build,
+                      title: '写作技能',
+                      subtitle: '管理写作技能和工具',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SkillManagePage(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示风格预设选择器
+  void _showStylePresetPicker() {
+    // 显示风格预设选择器
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: 400,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF444444),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  '选择写作风格',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    _buildStylePresetItem('都市', '现代都市生活'),
+                    _buildStylePresetItem('玄幻', '修仙玄幻世界'),
+                    _buildStylePresetItem('穿越', '穿越时空题材'),
+                    _buildStylePresetItem('悬疑', '悬疑推理故事'),
+                    _buildStylePresetItem('女频', '女性向题材'),
+                    _buildStylePresetItem('历史', '历史架空题材'),
+                    _buildStylePresetItem('科幻', '科幻未来世界'),
+                    _buildStylePresetItem('武侠', '武侠江湖题材'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建风格预设项
+  Widget _buildStylePresetItem(String title, String description) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        // 应用风格预设
+        TopNotification.success(context, '已选择风格：$title');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.palette, color: const Color(0xFF10A37F), size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建AI工具菜单项
+  Widget _buildAiToolMenuItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF10A37F), size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[500], size: 20),
+          ],
+        ),
       ),
     );
   }
