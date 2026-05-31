@@ -1167,8 +1167,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => RelationshipGraphPage(
-                    novelId: selectedNovel.id,
-                    novelTitle: selectedNovel.title,
+                    novelId: selectedNovel?.id ?? '',
+                    novelTitle: selectedNovel?.title ?? '全部作品',
                   ),
                 ),
               );
