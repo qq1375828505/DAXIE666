@@ -154,6 +154,22 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
     });
   }
 
+
+  /// 停止AI生成
+  void _stopGenerate() {
+    setState(() {
+      _isLoading = false;
+    });
+    // 如果有部分生成的内容，保留它
+    if (_currentSession != null && _currentSession!.messages.isNotEmpty) {
+      final lastMsg = _currentSession!.messages.last;
+      if (lastMsg['role'] == 'assistant' && (lastMsg['content']?.isEmpty ?? true)) {
+        _currentSession!.messages.removeLast();
+      }
+    }
+    _scrollToBottom();
+  }
+
   void _sendMessage() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
@@ -629,36 +645,51 @@ class _AiChatPageState extends ConsumerState<AiChatPage> with WidgetsBindingObse
                 onSubmitted: (_) => _sendMessage(),
               ),
             ),
-            // 发送/语音按钮
-            _inputCtrl.text.isNotEmpty
+            // 发送/停止/语音按钮
+            _isLoading
                 ? Container(
-                    width: 32,
-                    height: 32,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: textPrimary,
-                      borderRadius: BorderRadius.circular(16),
+                      color: const Color(0xFFE53935),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: bgColor, size: 18),
-                      onPressed: _isLoading ? null : _sendMessage,
+                      icon: const Icon(Icons.stop_rounded, color: Colors.white, size: 22),
+                      onPressed: _stopGenerate,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   )
-                : Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.mic, color: textPrimary, size: 18),
-                      onPressed: _handleMic,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
+                : _inputCtrl.text.isNotEmpty
+                    ? Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                          onPressed: _sendMessage,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      )
+                    : Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: cardBg2,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: Icon(Icons.mic, color: textPrimary, size: 20),
+                          onPressed: _handleMic,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
           ],
         ),
       ),
