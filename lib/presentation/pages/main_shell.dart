@@ -1124,7 +1124,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     Color textTertiary,
     Color cardBg2,
     Color primaryColor,
-    Novel selectedNovel,
+    Novel? selectedNovel,
   ) {
     return Container(
       width: double.infinity,
